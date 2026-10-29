@@ -60,6 +60,7 @@ public partial class MainWindow
         InvalidateSpeechRequests(true); EndGreetingNotice();
         if (!externalBubble) { speech.Cancel(); bubble.Visibility = Visibility.Collapsed; }
         CancelMovement();
+        if (enabled) EndCrawl(true);
         if (enabled && companionReady) PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle");
         RefreshMcpMenuAvailability();
         if (!enabled)
@@ -204,6 +205,7 @@ public partial class MainWindow
         brain.UseGpu = preferences.GpuEnabled; brain.WeatherRegionCode = preferences.WeatherRegionCode;
         if (oldRegion != preferences.WeatherRegionCode) InvalidateSpeechRequests();
         ApplyCompanionPowerPolicy(); ApplyCompanionScale(false); ApplyCompanionBubbleScale(false);
+        if (values.ContainsKey("Left") || values.ContainsKey("Top")) { StopCrawlNow(false, false); crawlResumeAt = DateTime.UtcNow.AddSeconds(8); }
         if (values.TryGetValue("Left", out var left) && left is double x) Left = x;
         if (values.TryGetValue("Top", out var top) && top is double y) Top = y;
         ClampCompanion(); anchor = new(Left, Top);

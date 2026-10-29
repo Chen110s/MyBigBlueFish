@@ -60,6 +60,7 @@ public partial class MainWindow
         if (IsMouseCaptured) ReleaseMouseCapture();
         dragging = false;
         CancelMovement();
+        EndCrawl(true);
         if (companionReady && !exitAnimation) PlayIdle();
         notifyIcon?.EnsureRegistered();
         nextWarmup = DateTime.MinValue;
@@ -283,6 +284,8 @@ public partial class MainWindow
         } // MA_NOACTIVATE, still deliver clicks.
 
         if (msg == 0x11) exitReady = true; // System session end need not wait for an animation.
+        if (msg == 0x1A && w.ToInt64() == 0x2F) // WM_SETTINGCHANGE / SPI_SETWORKAREA: taskbar moved or resized
+            Dispatcher.BeginInvoke(() => StopCrawlNow(false));
         if (msg == 0x218)
             ApplyCompanionPowerPolicy();
         return IntPtr.Zero;
@@ -317,6 +320,7 @@ public partial class MainWindow
 
     private void CompanionDisplayChanged(object? s, EventArgs e) => Dispatcher.BeginInvoke(() =>
     {
+        StopCrawlNow(false);
         ClampCompanion();
         anchor = new Point(Left, Top);
     });
@@ -329,6 +333,8 @@ public partial class MainWindow
 
     private void ApplyCompanionScale(bool save = true)
     {
+        // The crawl path is built for one body size; a new scale returns her to where she started.
+        if (crawl != null && crawl.Scale != preferences.Scale) StopCrawlNow(true);
         Width = SpriteSize * 640 / 360 + 20;
         Height = SpriteSize + 35;
         if (videoImage != null) { videoImage.Width = SpriteSize * 640 / 360; videoImage.Height = SpriteSize; }
@@ -360,8 +366,9 @@ public partial class MainWindow
     {
         if (preferences == null)
             return;
-        preferences.Left = Left;
-        preferences.Top = Top;
+        // While crawling, remember the resting place instead of a spot on a wall.
+        preferences.Left = crawl?.Origin.X ?? Left;
+        preferences.Top = crawl?.Origin.Y ?? Top;
         try
         {
             preferences.Save();
@@ -406,6 +413,7 @@ public partial class MainWindow
         if (Math.Abs(dx) + Math.Abs(dy) > 4 && !dragged)
         {
             dragged = true;
+            EndCrawl(false, false);
             PublishMcpInteraction("drag_start", new { Left, Top });
             if (!PuppetActive) PlayCompanion("drag");
         }
@@ -428,7 +436,11 @@ public partial class MainWindow
         ClampCompanion();
         anchor = new Point(Left, Top);
         SaveCompanion();
-        if (dragged) { PublishMcpInteraction("drag_end", new { Left, Top, cancelled = false }); FinishDragAnimation(); }
+        if (dragged)
+        {
+            crawlResumeAt = DateTime.UtcNow.AddSeconds(8); // let her rest where she was dropped
+            PublishMcpInteraction("drag_end", new { Left, Top, cancelled = false }); FinishDragAnimation();
+        }
         else
         {
             PublishMcpInteraction("click", new { button = "left", Left, Top });
@@ -543,7 +555,7 @@ public partial class MainWindow
         {
             diagnosticAt = now.AddSeconds(1);
             var hwnd = new WindowInteropHelper(this).Handle;
-            File.WriteAllText("test-status.json", System.Text.Json.JsonSerializer.Serialize(new { ready = companionReady, visible = IsVisible, hiddenByUser, fullscreenHidden, fullscreen = CompanionNative.IsFullscreen(), onAC = CompanionNative.OnAC, runner = brain.RunnerPid, busy = brain.Busy, status = brain.Status, hwnd = hwnd.ToInt64(), foreground = CompanionNative.GetForegroundWindow().ToInt64(), startupForeground = startupForeground.ToInt64(), style = CompanionNative.GetStyle(hwnd, -20).ToInt64(), Left, Top, Width, Height, bubble = bubbleText.Text, bubbleVisible = bubble.Visibility == Visibility.Visible, loadingVisible = loadingIndicator.Visibility == Visibility.Visible, bubbleDurationIndex = preferences.BubbleDurationIndex, bubbleRemainingSeconds = bubbleUntil == DateTime.MaxValue ? -1 : Math.Max(0, (bubbleUntil - now).TotalSeconds), action = currentAction, animationPhase, animationFrames = videoPlayer?.Frames, animationSeconds = videoPlayer?.PositionSeconds, animationInterval = preferences.AnimationIntervalSeconds, workRecognitionEnabled = false }));
+            File.WriteAllText("test-status.json", System.Text.Json.JsonSerializer.Serialize(new { ready = companionReady, visible = IsVisible, hiddenByUser, fullscreenHidden, fullscreen = CompanionNative.IsFullscreen(), onAC = CompanionNative.OnAC, runner = brain.RunnerPid, busy = brain.Busy, status = brain.Status, hwnd = hwnd.ToInt64(), foreground = CompanionNative.GetForegroundWindow().ToInt64(), startupForeground = startupForeground.ToInt64(), style = CompanionNative.GetStyle(hwnd, -20).ToInt64(), Left, Top, Width, Height, bubble = bubbleText.Text, bubbleVisible = bubble.Visibility == Visibility.Visible, loadingVisible = loadingIndicator.Visibility == Visibility.Visible, bubbleDurationIndex = preferences.BubbleDurationIndex, bubbleRemainingSeconds = bubbleUntil == DateTime.MaxValue ? -1 : Math.Max(0, (bubbleUntil - now).TotalSeconds), action = currentAction, animationPhase, animationFrames = videoPlayer?.Frames, animationSeconds = videoPlayer?.PositionSeconds, animationInterval = preferences.AnimationIntervalSeconds, workRecognitionEnabled = false, crawling = Crawling, crawlAngle, crawlMode = preferences.CrawlMode }));
             if (File.Exists("test-command.txt"))
             {
                 var command = File.ReadAllText("test-command.txt").Trim();
@@ -625,6 +637,12 @@ public partial class MainWindow
                             using var settingsStream = File.Create("test-settings.png");
                             settingsEncoder.Save(settingsStream);
                         }
+                        break;
+                    case "crawl":
+                        StartCrawl(true);
+                        break;
+                    case "crawl-stop":
+                        RequestCrawlStop();
                         break;
                     default:
                         if (command.StartsWith("event:"))

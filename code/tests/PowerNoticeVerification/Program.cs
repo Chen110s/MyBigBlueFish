@@ -45,7 +45,7 @@ internal static class Program
             typeof(Application).GetField("_startupUri", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(app, null);
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             Directory.SetCurrentDirectory(sandbox);
-            File.WriteAllText("preferences.json", "{\"ModelEnabled\":true,\"GpuEnabled\":false,\"StopModelOnBattery\":true,\"PublicInfo\":false,\"ForegroundEnabled\":false,\"BubbleDurationIndex\":0}");
+            File.WriteAllText("preferences.json", "{\"CrawlMode\":0,\"ModelEnabled\":true,\"GpuEnabled\":false,\"StopModelOnBattery\":true,\"PublicInfo\":false,\"ForegroundEnabled\":false,\"BubbleDurationIndex\":0}");
             var native = typeof(App).Assembly.GetType("BigBlueFish.Windows.CompanionNative")!;
             void Power(bool value) => native.GetField("TestPowerOverride", Access)!.SetValue(null, value);
             Power(false);

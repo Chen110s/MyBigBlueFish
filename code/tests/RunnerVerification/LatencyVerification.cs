@@ -79,7 +79,7 @@ internal static class LatencyVerification
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             Directory.SetCurrentDirectory(root);
             File.Copy(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), "BigBlueFish.ico", true);
-            File.WriteAllText("preferences.json", """{"ModelEnabled":false,"GpuEnabled":true,"StopModelOnBattery":false,"ForegroundEnabled":true,"PublicInfo":false,"HideOnFullscreen":false,"CheckUpdatesOnStartup":false,"Scale":0.65,"Left":1100,"Top":700}""");
+            File.WriteAllText("preferences.json", """{"CrawlMode":0,"ModelEnabled":false,"GpuEnabled":true,"StopModelOnBattery":false,"ForegroundEnabled":true,"PublicInfo":false,"HideOnFullscreen":false,"CheckUpdatesOnStartup":false,"Scale":0.65,"Left":1100,"Top":700}""");
             fish = new MainWindow(); fish.Show();
             Wait(() => (bool)Field(fish, "companionReady")!, 25, "Animations did not load");
             ((DispatcherTimer)Field(fish, "companionTimer")!).Stop();

@@ -92,7 +92,7 @@ internal static class NewsVerification
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
                 Directory.SetCurrentDirectory(root);
                 File.Copy(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), "BigBlueFish.ico", true);
-                File.WriteAllText("preferences.json", "{\"ModelEnabled\":false,\"GpuEnabled\":true,\"StopModelOnBattery\":false,\"PublicInfo\":true,\"ForegroundEnabled\":true,\"Scale\":1,\"Left\":550,\"Top\":300}");
+                File.WriteAllText("preferences.json", "{\"CrawlMode\":0,\"ModelEnabled\":false,\"GpuEnabled\":true,\"StopModelOnBattery\":false,\"PublicInfo\":true,\"ForegroundEnabled\":true,\"Scale\":1,\"Left\":550,\"Top\":300}");
                 App.Args = ["--test-mode"];
                 window = new MainWindow(); window.Show();
                 Wait(() => (bool)Field(window, "companionReady"), "production animation assets load", 20);

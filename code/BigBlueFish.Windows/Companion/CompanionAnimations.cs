@@ -37,10 +37,7 @@ public partial class MainWindow
         if (!bubbleIsModelReply) { speech.Cancel(); bubble.Visibility = Visibility.Collapsed; }
     }
     private static string AnimationDirectory => Path.Combine(AppContext.BaseDirectory, "assets", "fish");
-    internal Rect CompanionVisibleBounds => new(
-        (Width - SpriteSize * 640 / 360) / 2 + SpriteSize * 208 / 360,
-        Height - SpriteSize + SpriteSize * 58 / 360,
-        SpriteSize * 220 / 360, SpriteSize * 278 / 360);
+    // CompanionVisibleBounds lives in CompanionCrawl.cs so it can follow the crawl rotation.
 
     private void StartVideoAnimations()
     {
@@ -58,6 +55,7 @@ public partial class MainWindow
             ShowCompanionNotice("动画未能播放，请检查动画组件是否完整。");
         };
         videoPlayer.FramePresented += MoveWithAnimation;
+        videoPlayer.FramePresented += CrawlFrame;
         companionReady = true;
         if (PuppetActive) PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle");
         else { PlayAnimation(animationPolicy.Find("女仆屈膝礼仪"), "Startup"); ShowGreetingNotice(WelcomeText(DateTime.Now)); }
@@ -66,14 +64,15 @@ public partial class MainWindow
     private CompanionAnimationContext AnimationContext() => new(DateTime.Now,
         WorkRecognitionEnabled: false, BreakfastHour: preferences.BreakfastHour,
         LunchHour: preferences.LunchHour, DinnerHour: preferences.DinnerHour);
-    private void PlayAnimation(CompanionAnimationRule rule, string phase, bool mirror = false)
+    private void PlayAnimation(CompanionAnimationRule rule, string phase, bool mirror = false,
+        double startSeconds = 0, double? endSeconds = null)
     {
         if (!companionReady || companionClosed) return;
         if (phase is not ("Startup" or "Exit")) EndGreetingNotice();
         currentAction = rule.Id; animationPhase = phase;
         bool suspendedDrag = phase == "Drag";
         videoPlayer!.Play(Path.Combine(AnimationDirectory, rule.File), mirror, AnimationFinished,
-            startSeconds: suspendedDrag ? 1.5 : 0, endSeconds: suspendedDrag ? 6 : null,
+            startSeconds: suspendedDrag ? 1.5 : startSeconds, endSeconds: suspendedDrag ? 6 : endSeconds,
             playbackRate: rule.Pool == "Greeting" ? 1.5 : 1);
     }
     private void PlayIdle()
@@ -88,6 +87,7 @@ public partial class MainWindow
         if (!dragging && !hiddenByUser && !fullscreenHidden && PlayQueuedMcpAction()) return;
         if (PuppetActive) { PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
         if (animationPhase == "Drag") return; // Hold the final suspended pose until mouse release.
+        if (CrawlAnimationFinished()) return;
         if (animationPhase == "Outbound" && movementRule != null)
         {
             Left = movementEnd;
@@ -110,7 +110,8 @@ public partial class MainWindow
     }
     private void AnimationBoundary()
     {
-        if (PuppetActive) { PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
+        if (PuppetActive) { EndCrawl(true); PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
+        if (ContinueCrawlAtBoundary()) return;
         if (exitAnimation || dragging || hiddenByUser || fullscreenHidden || companionSettings != null) { PlayIdle(); return; }
         var local = DateTime.Now;
         var date = local.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
@@ -121,9 +122,11 @@ public partial class MainWindow
             PlayAnimation(animationPolicy.Find("晨间刷牙"), "Daily");
             return;
         }
+        if (TryStartCrawlAtBoundary(false)) return;
         if (DateTime.UtcNow >= nextAction)
         {
             nextAction = DateTime.UtcNow.AddSeconds(preferences.AnimationIntervalSeconds);
+            if (TryStartCrawlAtBoundary(true)) return;
             var rule = animationPolicy.Choose("Event", AnimationContext(), companionRandom);
             StartAnimationEvent(rule);
             return;
@@ -175,7 +178,7 @@ public partial class MainWindow
         if (PuppetActive || exitReady || !companionReady) { modelInstaller?.RequestClose(); updateWindow?.RequestClose(); return; }
         e.Cancel = true;
         if (exitAnimation) return;
-        exitAnimation = true; CancelMovement();
+        exitAnimation = true; CancelMovement(); EndCrawl(true);
         modelInstaller?.RequestClose();
         updateWindow?.RequestClose();
         speechRequestVersion++;

@@ -42,6 +42,10 @@ internal sealed class CompanionPreferences
     }
     public int BubbleDurationIndex { get; set; } = 3;
     public int AnimationIntervalSeconds { get; set; } = 40;
+    // 0 关闭, 1 偶尔, 2 经常, 3 一直爬（巡游）
+    public int CrawlMode { get; set; } = 3;
+    // 0 慢, 1 中, 2 快
+    public int CrawlSpeedIndex { get; set; } = 1;
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -98,6 +102,8 @@ internal sealed class CompanionPreferences
                     if (s.Top.HasValue && !double.IsFinite(s.Top.Value)) s.Top = null;
                     s.BubbleScale = double.IsFinite(s.BubbleScale) ? Math.Clamp(s.BubbleScale, .5, 2.0) : 1;
                     s.AnimationIntervalSeconds = Math.Clamp(s.AnimationIntervalSeconds, 30, 300);
+                    s.CrawlMode = Math.Clamp(s.CrawlMode, 0, 3);
+                    s.CrawlSpeedIndex = Math.Clamp(s.CrawlSpeedIndex, 0, 2);
                     s.BreakfastHour = Math.Clamp(s.BreakfastHour, 0, 23);
                     s.LunchHour = Math.Clamp(s.LunchHour, 0, 23);
                     s.DinnerHour = Math.Clamp(s.DinnerHour, 0, 23);

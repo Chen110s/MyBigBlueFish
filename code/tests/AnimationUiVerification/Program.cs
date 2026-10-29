@@ -72,7 +72,7 @@ internal static class Program
         settings.Close();
         foreach(var sample in new[]{(Value:.1,Expected:.5),(Value:9.0,Expected:2.0)})
         {
-            File.WriteAllText("preferences.json","{\"BubbleScale\":"+sample.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+"}");
+            File.WriteAllText("preferences.json","{\"CrawlMode\":0,\"BubbleScale\":"+sample.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)+"}");
             Check(Property<double>(readPrefs.Invoke(null,null)!,"BubbleScale")==sample.Expected,"loaded bubble scale clamps to range");
         }
         Console.WriteLine($"Bubble scale: {checks} real WPF checks passed.");
@@ -127,7 +127,7 @@ internal static class Program
     {
         var menu=(ContextMenu)Read(w,"companionContextMenu");
         var items=menu.Items.Cast<MenuItem>().ToArray();
-        Check(items.Select(i=>i.Header?.ToString()).SequenceEqual(new[]{"设置","天气","吐字测试","隐藏桌宠"}),"pet menu retains its four actions");
+        Check(items.Select(i=>i.Header?.ToString()).SequenceEqual(new[]{"设置","天气","吐字测试","沿屏幕爬一圈","隐藏桌宠"}),"pet menu retains its actions plus the crawl toggle");
         menu.IsOpen=true;Pump(120);menu.UpdateLayout();
         var dismissal=Read(w,"companionMenuDismissal");
         Check(Property<bool>(dismissal,"IsListening"),"outside-click observer attaches only while menu is open");
@@ -153,7 +153,7 @@ internal static class Program
         Check(!menu.IsOpen&&((TextBlock)Read(w,"bubbleText")).Text.Contains("启用本地大模型"),"weather action retains model-off behavior");
         menu.IsOpen=true;Pump();items[2].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
         Check(!menu.IsOpen&&((TextBlock)Read(w,"bubbleText")).Text.Contains("当前设置暂停了模型"),"speech test action retains model-off behavior");
-        menu.IsOpen=true;Pump();items[3].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
+        menu.IsOpen=true;Pump();items[4].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
         Check(!w.IsVisible&&(bool)Read(w,"hiddenByUser"),"styled hide action uses existing hide lifecycle");
         Invoke(w,"RestoreCompanion");Pump();Check(w.IsVisible&&!(bool)Read(w,"hiddenByUser"),"existing restore still works");
         var tray=(System.Windows.Forms.ContextMenuStrip)((CompanionTrayIcon)Read(w,"notifyIcon")).ContextMenuStrip!;
@@ -219,7 +219,7 @@ internal static class Program
                 fixture.Write(0x46554747u);fixture.Write(3u);fixture.Write(1ul);fixture.Write(1ul);
             }
             File.Copy(Path.Combine(AppContext.BaseDirectory,"BigBlueFish.ico"),"BigBlueFish.ico",true);
-            File.WriteAllText("preferences.json","{\"ModelEnabled\":false,\"PublicInfo\":false,\"ForegroundEnabled\":false,\"Scale\":1,\"Left\":400,\"Top\":250,\"WeatherRegionCode\":\"340104\",\"BubbleDurationIndex\":5,\"AnimationIntervalSeconds\":40}");
+            File.WriteAllText("preferences.json","{\"ModelEnabled\":false,\"PublicInfo\":false,\"ForegroundEnabled\":false,\"Scale\":1,\"Left\":400,\"Top\":250,\"WeatherRegionCode\":\"340104\",\"BubbleDurationIndex\":5,\"AnimationIntervalSeconds\":40,\"CrawlMode\":0}");
             var native=typeof(App).Assembly.GetType("BigBlueFish.Windows.CompanionNative")!;
             native.GetField("TestPowerOverride",Access)!.SetValue(null,false);
             w=new MainWindow();w.Show();Wait(()=>(bool)Read(w,"companionReady"),10,"video load");

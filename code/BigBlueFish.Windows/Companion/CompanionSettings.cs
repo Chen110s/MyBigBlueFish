@@ -222,6 +222,24 @@ public partial class MainWindow
         MealTime("午餐时间", preferences.LunchHour, h => preferences.LunchHour = h);
         MealTime("晚餐时间", preferences.DinnerHour, h => preferences.DinnerHour = h);
         p.Children.Add(meals);
+        var crawlRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        void CrawlChoice(string caption, string[] labels, int selected, Action<int> change)
+        {
+            var column = new StackPanel { Margin = new Thickness(0, 0, 14, 0), Width = 170 };
+            column.Children.Add(new TextBlock { Text = caption, Margin = new Thickness(0, 0, 0, 6) });
+            var selector = new ComboBox();
+            foreach (var item in labels) selector.Items.Add(item);
+            selector.SelectedIndex = selected;
+            System.Windows.Automation.AutomationProperties.SetName(selector, caption);
+            selector.SelectionChanged += (_, _) => { if (selector.SelectedIndex >= 0) { change(selector.SelectedIndex); SaveCompanion(); } };
+            column.Children.Add(selector); crawlRow.Children.Add(column);
+        }
+        CrawlChoice("沿屏幕四周爬行", CrawlModeLabels, Math.Clamp(preferences.CrawlMode, 0, CrawlModeLabels.Length - 1), SetCrawlMode);
+        CrawlChoice("爬行速度", CrawlSpeedLabels, Math.Clamp(preferences.CrawlSpeedIndex, 0, CrawlSpeedLabels.Length - 1),
+            i => preferences.CrawlSpeedIndex = i);
+        p.Children.Add(crawlRow);
+        p.Children.Add(new TextBlock { Text = "爬行时会贴着屏幕边缘转身：左右两侧贴墙、顶部倒挂。点她会停下回应，拖走就停止；右键菜单也能随时开始或停止。",
+            FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         p = pages[1];
         var freq = new ComboBox
         {
@@ -314,6 +332,8 @@ public partial class MainWindow
         Button("隐藏到任务栏通知区", HideCompanion);
         Button("回到右下角", () =>
         {
+            StopCrawlNow(false, false);
+            crawlResumeAt = DateTime.UtcNow.AddSeconds(8);
             var a = SystemParameters.WorkArea;
             Left = a.Right - Width - 8;
             Top = a.Bottom - Height + 12;

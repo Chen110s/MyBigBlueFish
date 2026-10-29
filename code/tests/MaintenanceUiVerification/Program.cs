@@ -14,7 +14,7 @@ static class Program
         var app = new App { ShutdownMode = ShutdownMode.OnLastWindowClose };
         App.Args = ["--test-mode"]; Environment.CurrentDirectory = directory;
         File.Copy(Path.Combine(AppContext.BaseDirectory,"BigBlueFish.ico"),Path.Combine(directory,"BigBlueFish.ico"),true);
-        File.WriteAllText("preferences.json","{\"ModelEnabled\":false,\"PublicInfo\":false,\"CheckUpdatesOnStartup\":false}");
+        File.WriteAllText("preferences.json","{\"CrawlMode\":0,\"ModelEnabled\":false,\"PublicInfo\":false,\"CheckUpdatesOnStartup\":false}");
         var pet = new MainWindow();
         object? Read(string name) => pet.GetType().GetField(name,Access)!.GetValue(pet);
         object? Invoke(string name) => pet.GetType().GetMethod(name,Access)!.Invoke(pet,null);

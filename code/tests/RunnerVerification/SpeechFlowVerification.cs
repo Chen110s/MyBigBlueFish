@@ -61,7 +61,7 @@ internal static class SpeechFlowVerification
             Directory.SetCurrentDirectory(Path.GetFullPath(root));
             File.Copy(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), "BigBlueFish.ico", true);
             // Isolated settings; real runtime/model/resources are junctions supplied by the caller.
-            File.WriteAllText("preferences.json", "{\"ModelEnabled\":false,\"GpuEnabled\":true,\"StopModelOnBattery\":false,\"ForegroundEnabled\":true,\"PublicInfo\":false,\"Scale\":0.85,\"SpeechMinMinutes\":3,\"Left\":400,\"Top\":250}");
+            File.WriteAllText("preferences.json", "{\"CrawlMode\":0,\"ModelEnabled\":false,\"GpuEnabled\":true,\"StopModelOnBattery\":false,\"ForegroundEnabled\":true,\"PublicInfo\":false,\"Scale\":0.85,\"SpeechMinMinutes\":3,\"Left\":400,\"Top\":250}");
             var random = new Random(20261014);
             foreach (var range in CompanionPreferences.SpeechRanges)
             {

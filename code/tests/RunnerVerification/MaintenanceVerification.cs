@@ -44,7 +44,7 @@ internal static class MaintenanceVerification
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             root = Path.GetFullPath(root); Directory.CreateDirectory(root); Environment.CurrentDirectory = root;
             File.Copy(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), "BigBlueFish.ico", true);
-            File.WriteAllText("preferences.json", "{\"ModelEnabled\":true,\"StopModelOnBattery\":false,\"CheckUpdatesOnStartup\":false,\"HideOnFullscreen\":true,\"PublicInfo\":false}");
+            File.WriteAllText("preferences.json", "{\"CrawlMode\":0,\"ModelEnabled\":true,\"StopModelOnBattery\":false,\"CheckUpdatesOnStartup\":false,\"HideOnFullscreen\":true,\"PublicInfo\":false}");
             ModelStore.Save(root, new ModelStore.Selection("none", null, null));
             Check(new CompanionPreferences().HideOnFullscreen && new CompanionPreferences().CheckUpdatesOnStartup, "new fullscreen and startup-update switches default on");
             window = new MainWindow(); window.Show(); Pump();

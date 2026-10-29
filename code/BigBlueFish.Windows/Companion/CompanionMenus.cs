@@ -36,11 +36,20 @@ public partial class MainWindow
         test.Icon = Icon("\uE8F2");
         test.Click += async (_, _) => { companionContextMenu.IsOpen = false; await SpeakCompanionTest(); };
         companionContextMenu.Items.Add(test);
+        var crawlItem = new MenuItem { Header = "沿屏幕爬一圈" };
+        crawlItem.Icon = Icon("\uE805");
+        crawlItem.Click += (_, _) => { companionContextMenu.IsOpen = false; ToggleCrawlFromMenu(); };
+        companionContextMenu.Items.Add(crawlItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };
         hide.Icon = Icon("\uE8A7");
         hide.Click += (_, _) => { companionContextMenu.IsOpen = false; HideCompanion(); };
         companionContextMenu.Items.Add(hide);
         companionContextMenu.Opened += (_, _) => { weather.IsEnabled = !PuppetActive; test.IsEnabled = !PuppetActive; };
+        companionContextMenu.Opened += (_, _) =>
+        {
+            crawlItem.Header = CrawlMenuHeader;
+            crawlItem.IsEnabled = !PuppetActive;
+        };
     }
 
     private async Task SpeakCompanionWeather()
