@@ -69,9 +69,9 @@ public partial class MainWindow
 #endif
         sidebar.Children.Add(new TextBlock { Text = version + " · 陪伴设置", Foreground = Brushes.SlateGray, Margin = new Thickness(5, 0, 0, 28) });
 #if COMPANION_SAFE
-        var titles = new[] { "陪伴与外观", "说话与天气", "模型与供电" };
+        var titles = new[] { "陪伴与外观", "说话与天气", "模型与供电", "互动与关怀" };
 #else
-        var titles = new[] { "陪伴与外观", "说话与天气", "模型与供电", "Agent 与 MCP" };
+        var titles = new[] { "陪伴与外观", "说话与天气", "模型与供电", "Agent 与 MCP", "互动与关怀" };
 #endif
         var pages = new StackPanel[titles.Length];
         var views = new ScrollViewer[titles.Length];
@@ -346,7 +346,12 @@ public partial class MainWindow
             w.Close();
             base.Close();
         });
-        Action? disposeMcpSettings = pages.Length > 3 ? AddMcpSettings(pages[3], w) : null;
+#if COMPANION_SAFE
+        Action? disposeMcpSettings = null;
+#else
+        Action? disposeMcpSettings = AddMcpSettings(pages[3], w);
+#endif
+        AddCareSettings(pages[^1]);
         foreach (var panel in pages) Card(panel);
         disposeCompanionSettingsContent = () => { timer.Stop(); disposeMcpSettings?.Invoke(); };
         refreshCompanionSettings = () => BuildCompanionSettingsContent(w, selectedPage, views.Select(v => v.VerticalOffset).ToArray());

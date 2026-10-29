@@ -46,6 +46,22 @@ internal sealed class CompanionPreferences
     public int CrawlMode { get; set; } = 3;
     // 0 慢, 1 中, 2 快
     public int CrawlSpeedIndex { get; set; } = 1;
+    // 互动与关怀
+    public bool ChatEnabled { get; set; } = true;
+    public bool MemoryEnabled { get; set; } = true;
+    public bool WelcomeBack { get; set; } = true;
+    public bool SitReminder { get; set; } = true;
+    public int SitMinutes { get; set; } = 50;
+    public bool WaterReminder { get; set; } = true;
+    public int WaterMinutes { get; set; } = 60;
+    public bool EyeReminder { get; set; } = true;
+    public int EyeMinutes { get; set; } = 45;
+    public bool BedtimeReminder { get; set; } = true;
+    public int FocusMinutes { get; set; } = 25;
+    public int BreakMinutes { get; set; } = 5;
+    public bool GameCompanion { get; set; } = true;
+    public bool GameScreenReactions { get; set; }
+    public string ExtraGames { get; set; } = "";
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -104,6 +120,13 @@ internal sealed class CompanionPreferences
                     s.AnimationIntervalSeconds = Math.Clamp(s.AnimationIntervalSeconds, 30, 300);
                     s.CrawlMode = Math.Clamp(s.CrawlMode, 0, 3);
                     s.CrawlSpeedIndex = Math.Clamp(s.CrawlSpeedIndex, 0, 2);
+                    s.SitMinutes = Math.Clamp(s.SitMinutes, 15, 180);
+                    s.WaterMinutes = Math.Clamp(s.WaterMinutes, 15, 180);
+                    s.EyeMinutes = Math.Clamp(s.EyeMinutes, 10, 120);
+                    s.FocusMinutes = Math.Clamp(s.FocusMinutes, 5, 120);
+                    s.BreakMinutes = Math.Clamp(s.BreakMinutes, 1, 60);
+                    s.ExtraGames ??= "";
+                    if (s.ExtraGames.Length > 500) s.ExtraGames = s.ExtraGames[..500];
                     s.BreakfastHour = Math.Clamp(s.BreakfastHour, 0, 23);
                     s.LunchHour = Math.Clamp(s.LunchHour, 0, 23);
                     s.DinnerHour = Math.Clamp(s.DinnerHour, 0, 23);

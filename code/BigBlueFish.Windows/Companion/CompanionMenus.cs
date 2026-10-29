@@ -40,6 +40,28 @@ public partial class MainWindow
         crawlItem.Icon = Icon("\uE805");
         crawlItem.Click += (_, _) => { companionContextMenu.IsOpen = false; ToggleCrawlFromMenu(); };
         companionContextMenu.Items.Add(crawlItem);
+        // Panels open after the menu has closed, so they keep the keyboard focus.
+        void Later(Action action) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, action);
+        var chatItem = new MenuItem { Header = "和鱼鱼聊天" };
+        chatItem.Icon = Icon("\uE8BD");
+        chatItem.Click += (_, _) =>
+        {
+            companionContextMenu.IsOpen = false;
+            Later(() => { if (!TryOpenChat()) Say(preferences.ChatEnabled ? "鱼鱼现在不方便聊天呢～" : "聊天功能在设置里关掉了哦～"); });
+        };
+        companionContextMenu.Items.Add(chatItem);
+        var feedItem = new MenuItem { Header = "喂零食…" };
+        feedItem.Icon = Icon("\uE719");
+        feedItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowSnackPanel); };
+        companionContextMenu.Items.Add(feedItem);
+        var focusItem = new MenuItem { Header = $"专注 {preferences.FocusMinutes} 分钟" };
+        focusItem.Icon = Icon("\uE916");
+        focusItem.Click += (_, _) => { companionContextMenu.IsOpen = false; ToggleFocus(); };
+        companionContextMenu.Items.Add(focusItem);
+        var remindItem = new MenuItem { Header = "提醒事项…" };
+        remindItem.Icon = Icon("\uE823");
+        remindItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowReminderPanel); };
+        companionContextMenu.Items.Add(remindItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };
         hide.Icon = Icon("\uE8A7");
         hide.Click += (_, _) => { companionContextMenu.IsOpen = false; HideCompanion(); };
@@ -49,6 +71,9 @@ public partial class MainWindow
         {
             crawlItem.Header = CrawlMenuHeader;
             crawlItem.IsEnabled = !PuppetActive;
+            focusItem.Header = FocusActive ? $"结束专注（还剩 {FocusMinutesLeft} 分钟）" : $"专注 {preferences.FocusMinutes} 分钟";
+            remindItem.Header = reminders.Count > 0 ? $"提醒事项（{reminders.Count}）…" : "提醒事项…";
+            foreach (var item in new[] { chatItem, feedItem, focusItem, remindItem }) item.IsEnabled = !PuppetActive;
         };
     }
 

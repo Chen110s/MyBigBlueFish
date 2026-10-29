@@ -112,6 +112,7 @@ public partial class MainWindow
     {
         if (PuppetActive) { EndCrawl(true); PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
         if (ContinueCrawlAtBoundary()) return;
+        if (FocusBoundary()) return;
         if (exitAnimation || dragging || hiddenByUser || fullscreenHidden || companionSettings != null) { PlayIdle(); return; }
         var local = DateTime.Now;
         var date = local.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
@@ -160,7 +161,9 @@ public partial class MainWindow
     {
         if (PuppetActive || !companionReady || exitAnimation) return;
         CancelMovement();
+        if (PokeReaction()) return;
         PlayAnimation(animationPolicy.Choose("Click", AnimationContext(), companionRandom), "Click");
+        ClickChatter();
     }
     private void FinishDragAnimation()
     {
@@ -191,6 +194,6 @@ public partial class MainWindow
         if (!IsVisible) Dispatcher.BeginInvoke(() => { if (!companionClosed && !exitReady) Show(); });
         videoPlayer!.Paused = false;
         PlayAnimation(animationPolicy.Find("女仆屈膝礼仪"), "Exit");
-        ShowGreetingNotice(FarewellText);
+        ShowGreetingNotice(FarewellLine());
     }
 }

@@ -14,7 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace BigBlueFish.Windows;
-internal sealed class CompanionBrain : IDisposable
+internal sealed partial class CompanionBrain : IDisposable
 {
     private readonly HttpClient local = new(new HttpClientHandler { UseProxy = false })
     {

@@ -70,7 +70,7 @@ public partial class MainWindow
 
     private void UpdateCompanionVisibility()
     {
-        fullscreenHidden = preferences.HideOnFullscreen && CompanionNative.IsFullscreen();
+        fullscreenHidden = preferences.HideOnFullscreen && CompanionNative.IsFullscreen() && !(gameActive && preferences.GameCompanion);
         bool show = !hiddenByUser && !fullscreenHidden;
         if (show && !IsVisible) { Show(); ClampCompanion(); }
         else if (!show && IsVisible) { InvalidateSpeechRequests(); Hide(); }
@@ -250,6 +250,7 @@ public partial class MainWindow
         nextAction = DateTime.UtcNow.AddSeconds(12);
         companionTimer.Start();
         InitializeMcp();
+        InitializeCare();
     }
 
     private Task LoadCompanionAnimations()
@@ -385,10 +386,10 @@ public partial class MainWindow
         e.Handled = true;
         CompanionNative.GetCursorPos(out var clickPosition);
         var clickNow = DateTime.UtcNow;
-        bool doubleClick = McpInputAvailable && (clickNow - lastClickAt).TotalMilliseconds <= Forms.SystemInformation.DoubleClickTime
+        bool doubleClick = (McpInputAvailable || LocalChatAvailable) && (clickNow - lastClickAt).TotalMilliseconds <= Forms.SystemInformation.DoubleClickTime
             && Math.Abs(clickPosition.X - lastClickPoint.X) <= Forms.SystemInformation.DoubleClickSize.Width
             && Math.Abs(clickPosition.Y - lastClickPoint.Y) <= Forms.SystemInformation.DoubleClickSize.Height;
-        if (doubleClick && TryOpenMcpInput()) {
+        if (doubleClick && (TryOpenMcpInput() || TryOpenChat())) {
             singleClickTimer?.Stop(); lastClickAt = DateTime.MinValue;
             PublishMcpInteraction("click", new { button = "left", count = 2, Left, Top });
             return;
@@ -446,7 +447,7 @@ public partial class MainWindow
             PublishMcpInteraction("click", new { button = "left", Left, Top });
             CompanionNative.GetCursorPos(out var point);
             lastClickAt = DateTime.UtcNow; lastClickPoint = new Point(point.X, point.Y);
-            if (McpInputAvailable)
+            if (McpInputAvailable || LocalChatAvailable)
             {
                 singleClickTimer?.Stop();
                 singleClickTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(Forms.SystemInformation.DoubleClickTime) };
@@ -660,7 +661,7 @@ public partial class MainWindow
                 InvalidateSpeechRequests(true);
             ClearCompanionModelReply();
         }
-        else if (!PuppetActive && modelInstaller == null && preferences.ModelEnabled && brain.ModelAvailable && !speechRequestPending && !brain.Busy && brain.RunnerPid == null && now >= nextWarmup)
+        else if (!PuppetActive && !(gameActive && preferences.GameCompanion) && modelInstaller == null && preferences.ModelEnabled && brain.ModelAvailable && !speechRequestPending && !brain.Busy && brain.RunnerPid == null && now >= nextWarmup)
         {
             nextWarmup = now.AddMinutes(2);
             _ = brain.WarmUp();
@@ -671,7 +672,7 @@ public partial class MainWindow
             return;
         if (bubble.Visibility == Visibility.Visible && now > bubbleUntil)
             bubble.Visibility = Visibility.Collapsed;
-        if (PuppetActive || now < nextSpeech || companionSettings != null || modelInstaller != null
+        if (PuppetActive || SpeechPaused || now < nextSpeech || companionSettings != null || modelInstaller != null
             || !HasScheduledMcpSpeech && (speechRequestPending || brain.Busy || weatherRequestPending || !preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower))
             return;
         if (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600)
@@ -807,6 +808,7 @@ public partial class MainWindow
         modelInstaller?.RequestClose();
         updateWindow?.RequestClose();
         StopMcp();
+        ShutdownCare();
         companionContextMenu.IsOpen = false;
         companionMenuDismissal?.Dispose();
         companionTimer?.Stop();

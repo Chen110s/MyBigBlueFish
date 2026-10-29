@@ -54,7 +54,7 @@ public partial class MainWindow
     internal bool Crawling => crawl is { Finished: false };
     private static bool IsCrawlPhase(string phase) => phase is "CrawlIntro" or "Crawl";
     private int CrawlMode => Math.Clamp(preferences.CrawlMode, 0, CrawlPatrolMode);
-    private bool CrawlPatrolActive => CrawlMode == CrawlPatrolMode && !crawlSuppressed;
+    private bool CrawlPatrolActive => CrawlMode == CrawlPatrolMode && !crawlSuppressed && !CrawlBlocked;
     private bool CanCrawl => companionReady && !companionClosed && !exitAnimation && !dragging && !PuppetActive
         && !hiddenByUser && !fullscreenHidden && videoPlayer != null;
 
@@ -390,7 +390,7 @@ public partial class MainWindow
     // AnimationBoundary hook: patrol always crawls, other modes sometimes replace an event.
     private bool TryStartCrawlAtBoundary(bool eventDue)
     {
-        if (crawl != null || !CanCrawl || DateTime.UtcNow < crawlResumeAt) return false;
+        if (crawl != null || !CanCrawl || CrawlBlocked || DateTime.UtcNow < crawlResumeAt) return false;
         if (CrawlPatrolActive) return StartCrawl();
         return eventDue && companionRandom.NextDouble() < CrawlEventChances[CrawlMode] && StartCrawl();
     }

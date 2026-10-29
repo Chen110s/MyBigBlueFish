@@ -127,7 +127,7 @@ internal static class Program
     {
         var menu=(ContextMenu)Read(w,"companionContextMenu");
         var items=menu.Items.Cast<MenuItem>().ToArray();
-        Check(items.Select(i=>i.Header?.ToString()).SequenceEqual(new[]{"设置","天气","吐字测试","沿屏幕爬一圈","隐藏桌宠"}),"pet menu retains its actions plus the crawl toggle");
+        Check(items.Select(i=>i.Header?.ToString()).SequenceEqual(new[]{"设置","天气","吐字测试","沿屏幕爬一圈","和鱼鱼聊天","喂零食…","专注 25 分钟","提醒事项…","隐藏桌宠"}),"pet menu retains its actions plus the companion additions");
         menu.IsOpen=true;Pump(120);menu.UpdateLayout();
         var dismissal=Read(w,"companionMenuDismissal");
         Check(Property<bool>(dismissal,"IsListening"),"outside-click observer attaches only while menu is open");
@@ -153,7 +153,7 @@ internal static class Program
         Check(!menu.IsOpen&&((TextBlock)Read(w,"bubbleText")).Text.Contains("启用本地大模型"),"weather action retains model-off behavior");
         menu.IsOpen=true;Pump();items[2].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
         Check(!menu.IsOpen&&((TextBlock)Read(w,"bubbleText")).Text.Contains("当前设置暂停了模型"),"speech test action retains model-off behavior");
-        menu.IsOpen=true;Pump();items[4].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
+        menu.IsOpen=true;Pump();items[8].RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));Pump();
         Check(!w.IsVisible&&(bool)Read(w,"hiddenByUser"),"styled hide action uses existing hide lifecycle");
         Invoke(w,"RestoreCompanion");Pump();Check(w.IsVisible&&!(bool)Read(w,"hiddenByUser"),"existing restore still works");
         var tray=(System.Windows.Forms.ContextMenuStrip)((CompanionTrayIcon)Read(w,"notifyIcon")).ContextMenuStrip!;
