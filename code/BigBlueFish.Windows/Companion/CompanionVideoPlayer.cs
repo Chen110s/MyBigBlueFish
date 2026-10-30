@@ -30,8 +30,11 @@ internal sealed class CompanionVideoPlayer : IDisposable
     internal event Action<string>? Failed;
     internal event Action<double>? FramePresented;
     internal CompanionVideoPlayer(Image target) { image = target; image.Source = bitmap; }
+    // normalize: a file from an appearance pack, which may be any size, frame rate or format
+    // (VP9 WebM, GIF, APNG, MOV, or a still PNG shown for three seconds). It is scaled to fit
+    // 640×360, bottom-aligned on a transparent canvas, at 24 fps.
     internal void Play(string file, bool mirrored, Action completed, double startSeconds = 0,
-        double? endSeconds = null, double playbackRate = 1)
+        double? endSeconds = null, double playbackRate = 1, bool normalize = false)
     {
         if (!double.IsFinite(startSeconds) || startSeconds < 0 || !double.IsFinite(playbackRate) || playbackRate <= 0
             || (endSeconds.HasValue && (!double.IsFinite(endSeconds.Value) || endSeconds.Value <= startSeconds)))
@@ -47,10 +50,22 @@ internal sealed class CompanionVideoPlayer : IDisposable
         var id = ++generation;
         var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "media", "ffmpeg.exe"))
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (var arg in new[] { "-v", "error", "-nostdin", "-threads", "1", "-c:v", "libvpx-vp9" }) start.ArgumentList.Add(arg);
+        string extension = Path.GetExtension(file).ToLowerInvariant();
+        bool still = normalize && extension == ".png";
+        foreach (var arg in new[] { "-v", "error", "-nostdin", "-threads", "1" }) start.ArgumentList.Add(arg);
+        // libvpx keeps the VP9 alpha channel; other formats use ffmpeg's own decoders.
+        if (!normalize || extension == ".webm") { start.ArgumentList.Add("-c:v"); start.ArgumentList.Add("libvpx-vp9"); }
+        if (still) { start.ArgumentList.Add("-loop"); start.ArgumentList.Add("1"); }
         if (startSeconds > 0) { start.ArgumentList.Add("-ss"); start.ArgumentList.Add(startSeconds.ToString("R", CultureInfo.InvariantCulture)); }
         start.ArgumentList.Add("-i"); start.ArgumentList.Add(file);
         if (endSeconds.HasValue) { start.ArgumentList.Add("-t"); start.ArgumentList.Add((endSeconds.Value - startSeconds).ToString("R", CultureInfo.InvariantCulture)); }
+        else if (still) { start.ArgumentList.Add("-t"); start.ArgumentList.Add("3"); }
+        if (normalize)
+        {
+            start.ArgumentList.Add("-vf");
+            start.ArgumentList.Add($"fps={Fps},scale={VideoWidth}:{VideoHeight}:force_original_aspect_ratio=decrease,format=bgra," +
+                $"pad={VideoWidth}:{VideoHeight}:(ow-iw)/2:oh-ih:color=black@0");
+        }
         foreach (var arg in new[] { "-an", "-sn", "-f", "rawvideo", "-pix_fmt", "bgra", "pipe:1" }) start.ArgumentList.Add(arg);
         var process = new Process { StartInfo = start };
         try

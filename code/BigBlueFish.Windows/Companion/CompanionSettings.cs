@@ -246,6 +246,7 @@ public partial class MainWindow
         p.Children.Add(new TextBlock { Text = "取消置顶后，鱼鱼会待在其他窗口后面：点她或点托盘图标会把她叫到前面；提醒、专注结束时她会暂时跳到最前；开着游戏陪玩时，玩游戏期间她仍待在游戏上面。右键菜单也能切换。",
             FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         AddOpacitySettings(p);
+        AddSkinSettings(p);
         p = pages[1];
         var freq = new ComboBox
         {

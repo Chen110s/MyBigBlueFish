@@ -73,6 +73,7 @@ internal sealed class CompanionPreferences
     public int BandageKey { get; set; }
     public int InjectKey { get; set; }
     public int PillKey { get; set; }
+    public string Skin { get; set; } = "";
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -137,6 +138,7 @@ internal sealed class CompanionPreferences
                     s.FocusMinutes = Math.Clamp(s.FocusMinutes, 5, 120);
                     s.BreakMinutes = Math.Clamp(s.BreakMinutes, 1, 60);
                     s.ExtraGames ??= "";
+                    s.Skin ??= "";
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

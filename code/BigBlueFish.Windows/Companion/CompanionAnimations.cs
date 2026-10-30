@@ -41,7 +41,8 @@ public partial class MainWindow
 
     private void StartVideoAnimations()
     {
-        animationPolicy = CompanionAnimationPolicy.Load(AnimationDirectory);
+        originalAnimationPolicy = animationPolicy = CompanionAnimationPolicy.Load(AnimationDirectory);
+        ApplySkin(preferences.Skin, false); // the chosen appearance pack, if it is still there
         videoImage = new CompanionSpriteImage { Width = SpriteSize * 640 / 360, Height = SpriteSize,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
             Stretch = Stretch.Fill };
@@ -51,6 +52,7 @@ public partial class MainWindow
         {
             File.WriteAllText("companion-errors.log", "动画播放失败：" + error);
             if (exitAnimation) { exitReady = true; base.Close(); return; }
+            if (RecoverFromSkinFailure()) return;
             companionReady = false;
             ShowCompanionNotice("动画未能播放，请检查动画组件是否完整。");
         };
@@ -71,9 +73,11 @@ public partial class MainWindow
         if (phase is not ("Startup" or "Exit")) EndGreetingNotice();
         currentAction = rule.Id; animationPhase = phase;
         bool suspendedDrag = phase == "Drag";
+        // Clips from an appearance pack play whole: their timing is unknown, so segments of the original do not apply.
+        bool skinClip = IsSkinClip(rule);
         videoPlayer!.Play(Path.Combine(AnimationDirectory, rule.File), mirror, AnimationFinished,
-            startSeconds: suspendedDrag ? 1.5 : startSeconds, endSeconds: suspendedDrag ? 6 : endSeconds,
-            playbackRate: rule.Pool == "Greeting" ? 1.5 : 1);
+            startSeconds: skinClip ? 0 : suspendedDrag ? 1.5 : startSeconds, endSeconds: skinClip ? null : suspendedDrag ? 6 : endSeconds,
+            playbackRate: rule.Pool == "Greeting" ? 1.5 : 1, normalize: skinClip);
     }
     private void PlayIdle()
     {

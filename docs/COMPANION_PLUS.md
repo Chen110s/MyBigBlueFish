@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.5`（构建时传入 `-p:InformationalVersion=1.0.5-companion.5`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.6`（构建时传入 `-p:InformationalVersion=1.0.5-companion.6`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -76,7 +76,16 @@
 - 设置 → 陪伴与外观 →「透明度」滑块：0%（不透明）到 80%，只改变鱼鱼本身，对话气泡保持清晰。
 - 「鼠标移到鱼鱼身上时恢复不透明」（默认开启），方便点她、拖她。
 
-## 七、三角洲里模仿主人
+## 七、形象包切换
+
+- 设置 → 陪伴与外观 →「形象」：在原版蓝色大肥鱼和程序目录 `skins\` 里的形象包之间切换，选中立即生效，随时可换回原版。
+- 形象包 = `skins\` 下的一个子文件夹，放入以动作命名的透明背景动画（如 `待机呼吸休闲.webm`、`点击回应-元气挥手.gif`）；支持 VP9 WebM（带透明通道）、GIF、APNG、MOV 和静态 PNG（当作 3 秒的动作），任意尺寸和帧率都会等比缩放到 640×360、贴底居中、24 帧/秒。
+- 缺少的动作默认用形象包自己的待机动作代替，随机动作只从形象包提供的动作里挑；`skin.json` 里写 `"Missing": "fish"` 则沿用原版鱼鱼。可选 `animations.json` 增加原版没有的新动作。
+- 「打开形象包文件夹」会生成「形象包说明.txt」和全部 106 个动作名的「动作清单.txt」。
+- 某个动作播放失败时自动换回原版并提示，不会让鱼鱼卡住。
+- 形象包的动画按整段播放（不使用原版动画里的分段），游戏模仿时的枪口火光只在原版形象下显示。
+
+## 八、三角洲里模仿主人
 
 开启「游戏陪玩」且前台是《三角洲行动》时，鱼鱼会同步模仿你的操作（设置 → 互动与关怀 →「三角洲行动 · 烽火地带」里可关闭）：
 
@@ -88,17 +97,17 @@
 - 只读取按键状态和屏幕画面，不向游戏发送任何操作、也不读取游戏内存。
 - 现有动画中没有开枪、包扎等动作，这些道具和特效是在鱼鱼身上实时绘制的。
 
-## 八、构建
+## 九、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.5
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.6
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 九、改动的文件
+## 十、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -117,6 +126,7 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionTopmost.cs` | 置顶 / 不置顶切换、提醒时临时置顶 |
 | `CompanionOpacity.cs` | 透明度与悬停恢复 |
 | `CompanionMimic.cs` | 三角洲里模仿开枪、瞄准、受伤、缠绷带、打药、吃药 |
+| `CompanionSkins.cs` | 形象包：扫描、动作替换、缺失动作处理、设置与说明文件 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
-修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
+修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

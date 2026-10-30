@@ -307,7 +307,12 @@ public partial class MainWindow
 
     private void MimicShot()
     {
-        if (currentAction != GunClip || animationPhase != "Mimic" || videoPlayer?.Frames == 0) { Jolt(0, 2, .08); return; }
+        // The flash is placed for the original water gun; with an appearance pack she only recoils.
+        if (currentAction != GunClip || animationPhase != "Mimic" || videoPlayer?.Frames == 0 || IsSkinClip(animationPolicy.Find(GunClip)))
+        {
+            Jolt(0, 2, .08);
+            return;
+        }
         var muzzle = MuzzlePoint(out double direction);
         // Muzzle flash: a bright star that pops and fades in under a tenth of a second.
         var glow = new RadialGradientBrush();
