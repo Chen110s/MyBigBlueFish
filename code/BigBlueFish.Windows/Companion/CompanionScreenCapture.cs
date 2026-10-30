@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -108,6 +109,78 @@ internal static class CompanionScreenCapture
             (lossless ? "data:image/png;base64," : "data:image/jpeg;base64,") + Convert.ToBase64String(output.ToArray()),
             normalized.Width,
             normalized.Height);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsCallback callback, IntPtr state);
+
+    private delegate bool EnumWindowsCallback(IntPtr handle, IntPtr state);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr handle);
+
+    // A game as it is shown on screen (DirectX games often render black through PrintWindow).
+    // The pet's own windows sit above the game, so they are blacked out and her words are never read back.
+    internal static CompanionWindowImage? CaptureGame(IntPtr handle, int maxDimension)
+    {
+        using var dpi = new CaptureDpiScope();
+        if (!CompanionNative.IsVisibleCaptureTarget(handle) || !CompanionNative.GetWindowRect(handle, out var rect))
+            return null;
+        var windowRect = Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+        var area = Rectangle.Intersect(windowRect, System.Windows.Forms.Screen.FromHandle(handle).Bounds);
+        if (area.Width < 64 || area.Height < 64)
+            return null;
+        using var bitmap = new Bitmap(area.Width, area.Height, PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            graphics.CopyFromScreen(area.Left, area.Top, 0, 0, area.Size, CopyPixelOperation.SourceCopy);
+            foreach (var own in OwnWindowRectangles())
+            {
+                var overlap = Rectangle.Intersect(own, area);
+                // A window covering most of the screen is a transparent overlay (menu dismissal), not the pet.
+                if (overlap.Width > 0 && overlap.Height > 0 && (long)overlap.Width * overlap.Height < (long)area.Width * area.Height / 3)
+                    graphics.FillRectangle(Brushes.Black, overlap.Left - area.Left, overlap.Top - area.Top, overlap.Width, overlap.Height);
+            }
+        }
+        // Exclusive fullscreen and similar give a pure black copy: try the window's own render instead, at most
+        // twice a minute (PrintWindow makes the game redraw). A dark scene with any light text is kept as it is.
+        if (Black(bitmap) && (DateTime.UtcNow - lastRenderFallbackUtc).TotalSeconds >= 30)
+        {
+            lastRenderFallbackUtc = DateTime.UtcNow;
+            if (Capture(handle, maxDimension, true) is { } rendered)
+                return rendered;
+        }
+        using var normalized = Resize(bitmap, maxDimension);
+        using var output = new MemoryStream();
+        normalized.Save(output, ImageFormat.Png);
+        return new("data:image/png;base64," + Convert.ToBase64String(output.ToArray()), normalized.Width, normalized.Height);
+    }
+
+    private static List<Rectangle> OwnWindowRectangles()
+    {
+        var result = new List<Rectangle>();
+        uint self = (uint)Environment.ProcessId;
+        EnumWindows((window, _) =>
+        {
+            CompanionNative.GetWindowThreadProcessId(window, out var owner);
+            if (owner == self && IsWindowVisible(window) && CompanionNative.GetWindowRect(window, out var r))
+                result.Add(Rectangle.FromLTRB(r.Left, r.Top, r.Right, r.Bottom));
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
+
+    private static DateTime lastRenderFallbackUtc = DateTime.MinValue;
+
+    private static bool Black(Bitmap bitmap)
+    {
+        for (int y = 1; y < 32; y++)
+            for (int x = 1; x < 32; x++)
+            {
+                var pixel = bitmap.GetPixel(bitmap.Width * x / 32, bitmap.Height * y / 32);
+                if (Math.Max(pixel.R, Math.Max(pixel.G, pixel.B)) > 8) return false;
+            }
+        return true;
     }
 
     private static Bitmap Resize(Bitmap source, int maxDimension)

@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion`（构建时传入 `-p:InformationalVersion=1.0.5-companion`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.2`（构建时传入 `-p:InformationalVersion=1.0.5-companion.2`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -42,17 +42,39 @@
 
 所有新设置集中在 设置 → **互动与关怀**。
 
-## 四、构建
+## 四、三角洲行动 · 烽火地带
+
+前台是《三角洲行动》时（进程 `DeltaForceClient-Win64-Shipping`，Steam / WeGame / 官方启动器安装的都可以），鱼鱼会陪你打烽火地带：
+
+- **识别画面**：约每 6 秒在本机截一次游戏画面并识别文字（Windows 自带的文字识别，不上传），只看画面上的大字，击杀信息、任务列表等小字不算：
+  - 进图：加载画面的地图名（零号大坝、长弓溪谷、巴克什、航天基地、潮汐监狱、核电站）；
+  - 撤离成功 / 撤离失败、阵亡、KIA / MIA；被击倒；结算画面的「带出价值」；
+  - 全面战场的胜利 / 失败和复活画面会被认出来，不计入烽火战绩。
+  - 同一个结算画面停着、切出去再回来，都只算一次；需要游戏使用「无边框窗口 / 窗口化全屏」，独占全屏可能截不到画面。
+- **动作和吐槽**：
+  - 进图：东张西望 / 原地踱步张望，「{地图}到了！耳朵竖起来听脚步～」；
+  - 撤离成功：放烟花 / 金袋叮当 / 雀跃庆祝；三连撤以上跳舞；连寄之后终于撤出来会「感动哭」；进去几分钟就撤会夸你跑刀聪明；
+  - 带出价值：百万以上「钱袋满溢」并记进记忆，三十万以上「金袋叮当」，十万以下「跑刀也是赚」；
+  - 阵亡：袋空如洗 / 害羞惊讶 / 数金皱眉；进图三分钟内阵亡是「落地成盒」（垂头叹气冒汗）；连寄三把「气急败坏」并建议跑刀，连寄五把劝你休息（分文不剩）；
+  - 被击倒：「倒了倒了！快爬到掩体后面！」；
+  - 游戏中的加油台词换成烽火专属（听脚步、见好就收、小心老六……）。
+- **战绩与复盘**（`data\deltaforce.json`）：今天（凌晨 5 点换日）和累计的撤离、阵亡、撤离率、连撤 / 连寄、最长连撤、带出的哈夫币、最近 40 局（时间、地图、用时、带出）。离开游戏 10 分钟后做一次复盘：今天几把、常去的图、最肥的一把，以及建议（连寄时跑刀缓一缓、撤离率高时冲大红、太晚了去睡觉等）。设置页可以看战绩、手动补记一把、清空战绩。
+- **聊天时懂烽火**：聊到三角洲（或刚玩过 3 小时内）时，模型会拿到烽火黑话说明和今天的战绩；
+  - 说「撤离成功了」「寄了」「被老六打死了」会记进战绩（屏幕已经认出来的不会重复记；说「不对，其实撤出来了」可以纠正刚才看错的一把）；
+  - 说「出大红了」她会替你开心；问「今天战绩怎么样」「帮我复盘」会直接给出统计。
+- **设置**：设置 → 互动与关怀 →「三角洲行动 · 烽火地带」：识别开关（需要开启游戏陪玩）、识别日志开关（`data\deltaforce-ocr.log`，只记录画面上的大字，识别不准时方便排查）、识别状态和战绩。
+
+## 五、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.2
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 五、改动的文件
+## 六、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -66,6 +88,8 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionCare.cs` | 关怀计时、离开回来、早安催睡、健康提醒、番茄钟、摸头、戳戳、喂零食 |
 | `CompanionReminders.cs` | 定时提醒（中文时间解析、持久化、提醒面板） |
 | `CompanionGame.cs` | 游戏识别与陪玩 |
+| `CompanionDeltaForce.cs` | 三角洲行动·烽火地带：战绩、反应台词与动作、聊天、复盘、设置 |
+| `CompanionDeltaForceScreen.cs` | 烽火地带画面识别（进图 / 撤离 / 阵亡 / 被击倒 / 带出价值） |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
-修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
+修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

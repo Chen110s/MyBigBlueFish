@@ -98,7 +98,7 @@ public partial class MainWindow
             UpdateCompanionVisibility();
         });
 #if COMPANION_OCR
-        Toggle("识别游戏里的「胜利 / 失败」画面并做出反应（实验：每 15 秒在本机截图识别文字，可能略微影响帧率）",
+        Toggle("识别其他游戏里的「胜利 / 失败」画面并做出反应（实验：每 15 秒在本机截图识别文字，可能略微影响帧率）",
             preferences.GameScreenReactions, v => preferences.GameScreenReactions = v);
 #endif
         page.Children.Add(new TextBlock { Text = "额外的游戏（进程名或安装目录关键字，用逗号分隔）", Margin = new Thickness(0, 8, 0, 4) });
@@ -106,5 +106,8 @@ public partial class MainWindow
         extra.LostFocus += (_, _) => { preferences.ExtraGames = extra.Text.Length > 500 ? extra.Text[..500] : extra.Text; SaveCompanion(); };
         page.Children.Add(extra);
         Note(gameActive ? $"正在陪主人玩《{gameName}》。" : "已内置 Steam、Epic、WeGame、米哈游、暴雪、Riot 等平台的常见游戏；游戏中鱼鱼不会调用模型，避免占用显卡。");
+
+        // ---- Delta Force
+        AddDeltaForceSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));
     }
 }

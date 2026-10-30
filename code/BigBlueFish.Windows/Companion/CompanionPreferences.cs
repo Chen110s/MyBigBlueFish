@@ -62,6 +62,8 @@ internal sealed class CompanionPreferences
     public bool GameCompanion { get; set; } = true;
     public bool GameScreenReactions { get; set; }
     public string ExtraGames { get; set; } = "";
+    public bool DeltaForceReactions { get; set; } = true;
+    public bool DeltaForceLog { get; set; } = true;
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;

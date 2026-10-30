@@ -183,6 +183,7 @@ public partial class MainWindow
                 if (!FocusActive) StartFocus();
                 return;
             }
+            if (TryDeltaForceChat(message)) return;
             if (!preferences.ModelEnabled || !brain.ModelAvailable)
             {
                 ChatReply(message, CannedChatReply(message));
@@ -263,6 +264,7 @@ public partial class MainWindow
                 system.Append("\n【鱼鱼的记忆】此刻没有想起什么相关的旧事；如果主人提起以前的事，就说有点印象但记不清了，可以请主人再讲讲。");
             memory.Save();
         }
+        system.Append(DeltaForceChatContext(message));
         if (GameActive) system.Append($"\n【现在】主人正在玩《{gameName}》，回答要短，别打扰主人打游戏。");
         if (FocusActive) system.Append($"\n【现在】主人正在专注（还剩 {FocusMinutesLeft} 分钟），回答简短，鼓励主人继续专注。");
         var list = new List<CompanionBrain.ChatMessage> { new("system", system.ToString()) };

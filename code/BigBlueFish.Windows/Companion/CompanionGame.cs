@@ -113,8 +113,8 @@ public partial class MainWindow
         }
         if (!game) return false;
         // Launchers and their store pages are not games.
-        if (lowerName is "steam" or "steamwebhelper" or "epicgameslauncher" or "wegame" or "riotclientservices" or "battle.net" or "hoyoplay"
-            or "launcher" or "minecraftlauncher" or "crashreportclient" or "unitycrashhandler64")
+        if (lowerName is "steam" or "steamwebhelper" or "wegame" or "riotclientservices" or "battle.net" or "hoyoplay" or "unitycrashhandler64"
+            || lowerName.Contains("launcher") || lowerName.Contains("crashreport"))
             return false;
         displayName = windowTitle.Length is > 0 and <= 24 ? windowTitle : name;
         return true;
@@ -124,18 +124,22 @@ public partial class MainWindow
     {
         if (now < nextGameCheck) return;
         nextGameCheck = now.AddSeconds(2);
+        if (now >= deltaSummaryDue && !gameActive) FinishDeltaSession();
         var hwnd = CompanionNative.GetForegroundWindow();
         CompanionNative.GetWindowThreadProcessId(hwnd, out var pid);
         string name = "";
         bool isGame = hwnd != IntPtr.Zero && pid != 0 && pid != (uint)Environment.ProcessId && IsGameWindow(hwnd, pid, out name);
+        bool isDelta = isGame && IsDeltaForceWindow(hwnd, pid);
         if (isGame)
         {
             gameLastSeenUtc = now;
+            if (isDelta) deltaLastSeenUtc = now;
             if (!gameActive)
             {
                 if (gameCandidatePid != pid) { gameCandidatePid = pid; gameCandidateSince = now; }
-                else if ((now - gameCandidateSince).TotalSeconds >= 6) StartGameSession(name, now);
+                else if ((now - gameCandidateSince).TotalSeconds >= 6) StartGameSession(isDelta ? "三角洲行动" : name, now, isDelta);
             }
+            else if (isDelta) gameDeltaForce = true;
         }
         else
         {
@@ -143,33 +147,55 @@ public partial class MainWindow
             if (gameActive && (now - gameLastSeenUtc).TotalSeconds >= 90) EndGameSession(now);
         }
         gameForeground = gameActive && isGame;
+        deltaForeground = gameForeground && isDelta;
         SetClickThrough(gameForeground && preferences.GameCompanion);
         if (gameActive) GameTick(now, hwnd);
     }
 
-    private void StartGameSession(string name, DateTime now)
+    private void StartGameSession(string name, DateTime now, bool deltaForce)
     {
         gameActive = true;
         gameName = name;
         gameStartUtc = now;
         gameHoursNoticed = 0;
+        gameDeltaForce = deltaForce;
+        StartDeltaSession(deltaForce);
+        nextDeltaRead = now.AddSeconds(3);
         nextGameCheer = now.AddMinutes(15 + companionRandom.NextDouble() * 10);
         nextGameScreenRead = now.AddSeconds(20);
         if (!preferences.GameCompanion) return;
         if (crawl is { Finished: false } walking) walking.StopRequested = true;
         if (!brain.Busy) brain.Stop(); // free the GPU/RAM the local model holds while the owner plays
         UpdateCompanionVisibility();
-        if (IsVisible && !PuppetActive && chatWindow == null)
-            Say($"{bond.Address}要玩《{name}》啦？鱼鱼在旁边给你加油！冲呀～", "工作状态-雀跃庆祝");
+        // Coming straight back after a short break (alt-tab, a meal) needs no second welcome.
+        if (IsVisible && !PuppetActive && chatWindow == null && (gameEndName != name || (now - gameEndUtc).TotalMinutes >= 10))
+            Say(deltaForce ? DeltaGreeting() : $"{bond.Address}要玩《{name}》啦？鱼鱼在旁边给你加油！冲呀～", "工作状态-雀跃庆祝");
     }
 
     private void EndGameSession(DateTime now)
     {
         var played = gameLastSeenUtc - gameStartUtc;
         string name = gameName;
+        bool deltaForce = gameDeltaForce;
         gameActive = false;
         gameForeground = false;
+        gameDeltaForce = false;
+        deltaForeground = false;
+        gameEndUtc = now;
+        gameEndName = name;
         SetClickThrough(false);
+        if (deltaForce)
+        {
+            // Between raids people alt-tab or grab a snack: review only once she has been away a while.
+            deltaSessionPlayed += played;
+            deltaSummaryDue = now.AddMinutes(10);
+            return;
+        }
+        GameGoodbye(name, played);
+    }
+
+    private void GameGoodbye(string name, TimeSpan played)
+    {
         if (played.TotalMinutes < 10) return;
         string duration = played.TotalMinutes < 60 ? $"{(int)played.TotalMinutes} 分钟" : $"{played.TotalHours:0.#} 个小时";
         AddAffection(1);
@@ -184,6 +210,14 @@ public partial class MainWindow
 
     private void GameTick(DateTime now, IntPtr hwnd)
     {
+#if COMPANION_OCR
+        // Delta Force keeps its record even while she is hidden (but not with 游戏陪玩 off); she only speaks when visible.
+        if (preferences.GameCompanion && gameDeltaForce && preferences.DeltaForceReactions && deltaForeground && now >= nextDeltaRead && !deltaReading)
+        {
+            nextDeltaRead = now.AddSeconds(6);
+            _ = ReadDeltaForceScreen(hwnd);
+        }
+#endif
         if (!preferences.GameCompanion || PuppetActive || !IsVisible) return;
         int hours = (int)(now - gameStartUtc).TotalHours;
         if (hours >= 1 && hours > gameHoursNoticed)
@@ -196,10 +230,11 @@ public partial class MainWindow
         {
             nextGameCheer = now.AddMinutes(18 + companionRandom.NextDouble() * 12);
             if (bubble.Visibility != System.Windows.Visibility.Visible && chatWindow == null)
-                Say(Fill(Pick(GameCheers)), Pick(GameCheerAnimations));
+                Say(Fill(Pick(gameDeltaForce ? DeltaCheers : GameCheers)), Pick(GameCheerAnimations));
         }
 #if COMPANION_OCR
-        if (preferences.GameScreenReactions && gameForeground && now >= nextGameScreenRead && !gameScreenReading)
+        if (preferences.GameScreenReactions && !(gameDeltaForce && preferences.DeltaForceReactions)
+            && gameForeground && now >= nextGameScreenRead && !gameScreenReading)
         {
             nextGameScreenRead = now.AddSeconds(15);
             _ = ReadGameScreen(hwnd);
