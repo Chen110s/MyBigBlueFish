@@ -62,6 +62,12 @@ public partial class MainWindow
         remindItem.Icon = Icon("\uE823");
         remindItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowReminderPanel); };
         companionContextMenu.Items.Add(remindItem);
+        string TopmostHeader() => preferences.AlwaysOnTop ? "取消置顶" : "置顶显示";
+        string TopmostGlyph() => preferences.AlwaysOnTop ? "\uE77A" : "\uE718";
+        var topmostItem = new MenuItem { Header = TopmostHeader() };
+        topmostItem.Icon = Icon(TopmostGlyph());
+        topmostItem.Click += (_, _) => { companionContextMenu.IsOpen = false; SetAlwaysOnTop(!preferences.AlwaysOnTop, true); };
+        companionContextMenu.Items.Add(topmostItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };
         hide.Icon = Icon("\uE8A7");
         hide.Click += (_, _) => { companionContextMenu.IsOpen = false; HideCompanion(); };
@@ -70,6 +76,8 @@ public partial class MainWindow
         companionContextMenu.Opened += (_, _) =>
         {
             crawlItem.Header = CrawlMenuHeader;
+            topmostItem.Header = TopmostHeader();
+            topmostItem.Icon = Icon(TopmostGlyph());
             crawlItem.IsEnabled = !PuppetActive;
             focusItem.Header = FocusActive ? $"结束专注（还剩 {FocusMinutesLeft} 分钟）" : $"专注 {preferences.FocusMinutes} 分钟";
             remindItem.Header = reminders.Count > 0 ? $"提醒事项（{reminders.Count}）…" : "提醒事项…";

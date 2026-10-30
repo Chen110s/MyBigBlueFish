@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.2`（构建时传入 `-p:InformationalVersion=1.0.5-companion.2`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.3`（构建时传入 `-p:InformationalVersion=1.0.5-companion.3`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -64,17 +64,24 @@
   - 说「出大红了」她会替你开心；问「今天战绩怎么样」「帮我复盘」会直接给出统计。
 - **设置**：设置 → 互动与关怀 →「三角洲行动 · 烽火地带」：识别开关（需要开启游戏陪玩）、识别日志开关（`data\deltaforce-ocr.log`，只记录画面上的大字，识别不准时方便排查）、识别状态和战绩。
 
-## 五、构建
+## 五、置顶 / 不置顶
+
+- 右键「取消置顶 / 置顶显示」，或 设置 → 陪伴与外观 →「置顶显示（总在其他窗口前面）」，默认置顶。
+- 取消置顶后，鱼鱼和普通窗口一样会被其他窗口挡住：点她、点托盘图标会把她叫到前面（不抢键盘焦点）。
+- 定时提醒、专注结束、久坐 / 喝水 / 护眼提醒时，她会暂时跳到最前，气泡消失后回到窗口后面；开着游戏陪玩时，游戏在前台期间她仍待在游戏上面。
+- 对话气泡、聊天框和小面板跟随她的置顶状态。
+
+## 六、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.2
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.3
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 六、改动的文件
+## 七、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -90,6 +97,7 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionGame.cs` | 游戏识别与陪玩 |
 | `CompanionDeltaForce.cs` | 三角洲行动·烽火地带：战绩、反应台词与动作、聊天、复盘、设置 |
 | `CompanionDeltaForceScreen.cs` | 烽火地带画面识别（进图 / 撤离 / 阵亡 / 被击倒 / 带出价值） |
+| `CompanionTopmost.cs` | 置顶 / 不置顶切换、提醒时临时置顶 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
-修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
+修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

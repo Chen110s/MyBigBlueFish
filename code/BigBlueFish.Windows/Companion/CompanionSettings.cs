@@ -240,6 +240,11 @@ public partial class MainWindow
         p.Children.Add(crawlRow);
         p.Children.Add(new TextBlock { Text = "爬行时会贴着屏幕边缘转身：左右两侧贴墙、顶部倒挂。点她会停下回应，拖走就停止；右键菜单也能随时开始或停止。",
             FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
+        var topmostBox = new CheckBox { Content = "置顶显示（总在其他窗口前面）", IsChecked = preferences.AlwaysOnTop, Margin = new Thickness(0, 0, 0, 4) };
+        topmostBox.Click += (_, _) => SetAlwaysOnTop(topmostBox.IsChecked == true, false);
+        p.Children.Add(topmostBox);
+        p.Children.Add(new TextBlock { Text = "取消置顶后，鱼鱼会待在其他窗口后面：点她或点托盘图标会把她叫到前面；提醒、专注结束时她会暂时跳到最前；开着游戏陪玩时，玩游戏期间她仍待在游戏上面。右键菜单也能切换。",
+            FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         p = pages[1];
         var freq = new ComboBox
         {

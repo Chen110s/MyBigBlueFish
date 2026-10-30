@@ -115,7 +115,7 @@ public partial class MainWindow
         WindowStyle = WindowStyle.None;
         ShowActivated = false;
         ShowInTaskbar = false;
-        Topmost = true;
+        Topmost = preferences.AlwaysOnTop;
         Title = "蓝色大肥鱼";
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Manual;
@@ -768,6 +768,7 @@ public partial class MainWindow
         hiddenByUser = false;
         UpdateCompanionVisibility();
         ClampCompanion();
+        RaiseCompanion();
         nextSpeech = DateTime.UtcNow.Add(preferences.NextSpeechDelay(companionRandom));
     }
 

@@ -25,6 +25,7 @@ public static class CompanionEdgeLayout
         private bool closed;
         private bool queued;
         private readonly DependencyPropertyDescriptor visibility;
+        private readonly DependencyPropertyDescriptor topmost = DependencyPropertyDescriptor.FromProperty(Window.TopmostProperty, typeof(Window));
         public Follow(Window w)
         {
             pet = w;
@@ -34,6 +35,7 @@ public static class CompanionEdgeLayout
             textChange.AddValueChanged(text, Changed);
             visibility = DependencyPropertyDescriptor.FromProperty(UIElement.VisibilityProperty, typeof(Border));
             visibility.AddValueChanged(bubble, Changed);
+            topmost.AddValueChanged(pet, Changed); // the bubble shares the pet's 置顶 setting
             pet.Loaded += Loaded;
             pet.LocationChanged += Changed;
             pet.SizeChanged += Changed;
@@ -87,6 +89,7 @@ public static class CompanionEdgeLayout
             closed = true;
             visibility.RemoveValueChanged(bubble, Changed);
             textChange.RemoveValueChanged(text, Changed);
+            topmost.RemoveValueChanged(pet, Changed);
             if (popup != null)
             {
                 popup.Content = null;
@@ -191,6 +194,7 @@ public static class CompanionEdgeLayout
 
                 top = Limit(top, area.Top + 8.0, area.Bottom - bubbleHeight - 8.0);
                 styledBubble?.PointAt((pet.Left + petBounds.Left + petBounds.Width / 2.0 - left) / scale, belowPet);
+                if (popup.Topmost != pet.Topmost) popup.Topmost = pet.Topmost;
                 popup.Width = Math.Max(1.0, bubbleWidth);
                 popup.Height = Math.Max(1.0, bubbleHeight);
                 popup.Left = left;

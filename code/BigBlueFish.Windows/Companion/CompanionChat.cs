@@ -76,7 +76,7 @@ public partial class MainWindow
             BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(12), Child = content };
         var window = new Window { Title = "蓝色大肥鱼 · 聊天", Width = 340, Height = 118, WindowStyle = WindowStyle.None,
             AllowsTransparency = true, Background = Brushes.Transparent, ResizeMode = ResizeMode.NoResize,
-            ShowInTaskbar = false, ShowActivated = true, Topmost = true, Owner = this, Content = frame,
+            ShowInTaskbar = false, ShowActivated = true, Topmost = this.Topmost, Owner = this, Content = frame,
             FontFamily = new FontFamily("Microsoft YaHei UI"), WindowStartupLocation = WindowStartupLocation.Manual };
         using (var theme = typeof(BigBlueFish.Deployment.ModernWindow).Assembly.GetManifestResourceStream("BigBlueFish.ModernTheme.xaml"))
         {

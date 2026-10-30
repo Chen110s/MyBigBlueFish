@@ -65,6 +65,7 @@ public partial class MainWindow
         bond.LastSeenUtc = DateTime.UtcNow;
         SaveBondSoon();
         PreviewMouseMove += CompanionPatMove;
+        PreviewMouseDown += RaiseOnTouch;
         careTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         careTimer.Tick += CareTick;
         careTimer.Start();
@@ -101,6 +102,7 @@ public partial class MainWindow
     {
         if (companionClosed || exitAnimation || PuppetActive || !companionReady) return;
         if (important && hiddenByUser) RestoreCompanion();
+        if (important) RaiseForNotice();
         if (!IsVisible)
         {
             if (important) notifyIcon?.ShowBalloonTip(10000, "蓝色大肥鱼", text, System.Windows.Forms.ToolTipIcon.Info);
@@ -132,6 +134,7 @@ public partial class MainWindow
         if (now >= bondSaveDue) SaveBondNow();
         double idle = CompanionNative.IdleSeconds;
         UpdateGame(now);
+        ApplyTopmost();
         CheckReminders(now);
         UpdateFocus(now);
         UpdatePresence(now, local, idle, dt);
@@ -279,6 +282,7 @@ public partial class MainWindow
         if (eye) { parts.Add("看看远处二十秒，让眼睛也休息一下"); animation ??= "东张西望"; eyeActiveSeconds = 0; }
         if (water) { parts.Add("记得喝口水哦，鱼鱼也要咕噜咕噜补充水分"); animation ??= "鲸鱼吐泡泡特效"; waterActiveSeconds = 0; }
         string prefix = GameActive ? $"{bond.Address}，游戏间隙打断一下下～" : $"{bond.Address}，";
+        RaiseForNotice();
         Say(prefix + string.Join("；还有，", parts) + "～", GameActive ? null : animation);
     }
 
@@ -477,7 +481,7 @@ public partial class MainWindow
             BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 10, 14, 12), Child = content };
         var window = new Window { Title = "蓝色大肥鱼", Width = width, SizeToContent = SizeToContent.Height, WindowStyle = WindowStyle.None,
             AllowsTransparency = true, Background = Brushes.Transparent, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false,
-            Topmost = true, Owner = this, Content = frame, FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 13,
+            Topmost = this.Topmost, Owner = this, Content = frame, FontFamily = new FontFamily("Microsoft YaHei UI"), FontSize = 13,
             WindowStartupLocation = WindowStartupLocation.Manual };
         using (var theme = typeof(BigBlueFish.Deployment.ModernWindow).Assembly.GetManifestResourceStream("BigBlueFish.ModernTheme.xaml"))
         {
