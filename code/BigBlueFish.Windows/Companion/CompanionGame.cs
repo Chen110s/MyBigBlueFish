@@ -149,7 +149,8 @@ public partial class MainWindow
         gameForeground = gameActive && isGame;
         deltaForeground = gameForeground && isDelta;
         UpdateMimic(hwnd);
-        SetClickThrough(gameForeground && preferences.GameCompanion);
+        // Any recognised game in front gets every click, from the first moment (no waiting for the session).
+        SetClickThrough(isGame);
         if (gameActive) GameTick(now, hwnd);
     }
 
@@ -267,15 +268,52 @@ public partial class MainWindow
     }
 #endif
 
-    // While a game is in front she lets mouse clicks pass through so she never steals input.
+    // While a game is in front she and her speech bubble let every mouse click pass through, so she never
+    // steals input. The actual window style is checked each time, in case something has reset it.
     private void SetClickThrough(bool enabled)
     {
-        if (clickThrough == enabled) return;
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero) return;
-        long style = CompanionNative.GetStyle(handle, -20).ToInt64();
-        style = enabled ? style | 0x20L : style & ~0x20L;
-        CompanionNative.SetStyle(handle, -20, new IntPtr(style));
         clickThrough = enabled;
+        var windows = new List<System.Windows.Window> { this };
+        if (System.Windows.Application.Current is { } app)
+            foreach (System.Windows.Window window in app.Windows)
+                if (window != this && window.Owner == this && window.Title == "蓝色大肥鱼 · 对话") windows.Add(window);
+        foreach (var window in windows)
+        {
+            var handle = new WindowInteropHelper(window).Handle;
+            if (handle == IntPtr.Zero) continue;
+            long style = CompanionNative.GetStyle(handle, -20).ToInt64();
+            long wanted = enabled ? style | 0x20L : style & ~0x20L;
+            if (wanted != style) CompanionNative.SetStyle(handle, -20, new IntPtr(wanted));
+        }
+    }
+
+    // React the moment the owner switches windows instead of at the next two-second check.
+    private delegate void WinEventCallback(IntPtr hook, uint winEvent, IntPtr hwnd, int objectId, int childId, uint thread, uint time);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventCallback callback, uint processId, uint threadId, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnhookWinEvent(IntPtr hook);
+
+    private WinEventCallback? foregroundCallback;
+    private IntPtr foregroundHook;
+
+    private void InitializeGameWatch()
+    {
+        foregroundCallback = (_, _, _, _, _, _, _) =>
+        {
+            if (companionClosed || !companionReady) return;
+            nextGameCheck = DateTime.MinValue;
+            UpdateGame(DateTime.UtcNow);
+        };
+        // EVENT_SYSTEM_FOREGROUND, out of context (nothing is loaded into other programs), not for our own windows.
+        foregroundHook = SetWinEventHook(3, 3, IntPtr.Zero, foregroundCallback, 0, 0, 0x0002);
+    }
+
+    private void ShutdownGameWatch()
+    {
+        if (foregroundHook != IntPtr.Zero) UnhookWinEvent(foregroundHook);
+        foregroundHook = IntPtr.Zero;
     }
 }

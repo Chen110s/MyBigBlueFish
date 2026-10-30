@@ -91,10 +91,9 @@ public partial class MainWindow
 
         // ---- games
         Section("游戏陪玩");
-        Toggle("玩游戏时陪着主人：全屏也不躲起来、鼠标点击会穿过她、偶尔加油", preferences.GameCompanion, v =>
+        Toggle("玩游戏时陪着主人：全屏也不躲起来、偶尔加油", preferences.GameCompanion, v =>
         {
             preferences.GameCompanion = v;
-            if (!v) SetClickThrough(false);
             UpdateCompanionVisibility();
         });
 #if COMPANION_OCR
@@ -105,7 +104,8 @@ public partial class MainWindow
         var extra = new TextBox { Text = preferences.ExtraGames, MinHeight = 28, Padding = new Thickness(4, 3, 4, 3) };
         extra.LostFocus += (_, _) => { preferences.ExtraGames = extra.Text.Length > 500 ? extra.Text[..500] : extra.Text; SaveCompanion(); };
         page.Children.Add(extra);
-        Note(gameActive ? $"正在陪主人玩《{gameName}》。" : "已内置 Steam、Epic、WeGame、米哈游、暴雪、Riot 等平台的常见游戏；游戏中鱼鱼不会调用模型，避免占用显卡。");
+        Note((gameActive ? $"正在陪主人玩《{gameName}》。" : "已内置 Steam、Epic、WeGame、米哈游、暴雪、Riot 等平台的常见游戏；游戏中鱼鱼不会调用模型，避免占用显卡。")
+            + "游戏在前台时，鼠标点击总会穿过鱼鱼和她的气泡，不会挡住操作（切到游戏立即生效）；游戏中的提醒气泡 15 秒后自动收起。");
 
         // ---- Delta Force
         AddDeltaForceSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));

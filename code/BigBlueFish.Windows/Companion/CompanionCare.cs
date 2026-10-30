@@ -67,6 +67,7 @@ public partial class MainWindow
         PreviewMouseMove += CompanionPatMove;
         PreviewMouseDown += RaiseOnTouch;
         InitializeOpacity();
+        InitializeGameWatch();
         careTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         careTimer.Tick += CareTick;
         careTimer.Start();
@@ -75,6 +76,7 @@ public partial class MainWindow
     private void ShutdownCare()
     {
         careTimer?.Stop();
+        ShutdownGameWatch();
         StopMimic();
         chatWindow?.Close();
         petPanel?.Close();
@@ -119,7 +121,8 @@ public partial class MainWindow
         ShowCompanionNotice(text, !important);
         if (important)
         {
-            bubbleUntil = DateTime.MaxValue;
+            // In a game the bubble cannot be clicked away (clicks pass through), so it closes by itself.
+            bubbleUntil = clickThrough ? DateTime.UtcNow.AddSeconds(15) : DateTime.MaxValue;
             var quiet = DateTime.UtcNow.AddMinutes(3); // keep the next automatic line from covering it
             if (nextSpeech < quiet) nextSpeech = quiet;
         }

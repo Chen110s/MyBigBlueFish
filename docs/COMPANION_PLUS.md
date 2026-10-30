@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.4`（构建时传入 `-p:InformationalVersion=1.0.5-companion.4`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.5`（构建时传入 `-p:InformationalVersion=1.0.5-companion.5`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -35,7 +35,7 @@
 - **番茄钟**：右键「专注 N 分钟」（默认 25 分钟、休息 5 分钟），专注时安静陪伴，不爬、不说话，提醒延后；聊天里说「开始专注」「结束专注」也可以。
 - **定时提醒**（`data\reminders.json`）：右键「提醒事项…」或在聊天里说「30分钟后提醒我开会」「下午3点半提醒我交报告」「明天早上8:30叫我起床」。到点跳出提醒；重启后保留，错过的会补提醒。
 - **游戏陪玩**：识别前台的常见游戏（Steam、Epic、WeGame、米哈游、暴雪、Riot 等，可在设置中补充进程名）：
-  - 全屏不隐藏，鼠标点击穿过鱼鱼本体；
+  - 全屏不隐藏；游戏在前台时鼠标点击总会穿过鱼鱼和她的对话气泡（切到游戏的一瞬间生效，与是否开启陪玩无关），游戏中的提醒气泡 15 秒后自动收起；
   - 游戏中不调用模型并释放模型占用的显存；
   - 开局加油、约每 20 分钟加油、每满 1 小时提醒休息、结束后关心战况；
   - 可选（实验，默认关闭）：每 15 秒本机 OCR 识别「胜利 / 失败」字样并做出反应。
@@ -93,7 +93,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.4
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.5
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。

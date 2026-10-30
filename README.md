@@ -29,7 +29,7 @@
 - **关怀提醒**：久坐、喝水、护眼提醒（按实际使用时间计算）；每天的早安、深夜催睡和晚安。
 - **番茄钟**：右键「专注」，专注期间她安静陪伴，结束时叫你休息。
 - **定时提醒**：右键「提醒事项」，或在聊天里说「30分钟后提醒我开会」「明天早上8:30叫我起床」，重启后仍然保留。
-- **游戏陪玩**：识别常见游戏后，全屏也不躲起来、鼠标点击会穿过她、不占用显卡，偶尔加油、每小时提醒休息；可选识别「胜利 / 失败」画面并做出反应。
+- **游戏陪玩**：识别常见游戏后，全屏也不躲起来、鼠标点击会穿过她和她的气泡（切到游戏立即生效，不会挡操作）、不占用显卡，偶尔加油、每小时提醒休息；可选识别「胜利 / 失败」画面并做出反应。
 - **置顶 / 不置顶**：右键或设置里切换；不置顶时她待在其他窗口后面，点她或托盘图标叫到前面，有提醒时暂时跳到最前。
 - **透明度**：设置里拖动滑块让鱼鱼变得半透明（气泡保持清晰），鼠标移上去时恢复不透明。
 - **三角洲里模仿你**：你开枪她举水枪开火、你开镜她出现准星、你受伤她红闪一抖、你缠绷带 / 打药 / 吃药她也跟着做（只读取按键和画面，不碰游戏）。
@@ -43,10 +43,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.4
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.5
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.4` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.5` 即为增强版。
 
 应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
 
@@ -239,7 +239,7 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Care reminders**: reminders to stand up, drink water and rest your eyes (based on actual computer use); good morning, late-night "go to bed" nudges and good night.
 - **Focus timer**: right-click "专注" (Focus) for a pomodoro; she keeps you quiet company and tells you to take a break when it ends.
 - **Timed reminders**: right-click "提醒事项" (Reminders) or say in the chat "30分钟后提醒我开会" (remind me about the meeting in 30 minutes) or "明天早上8:30叫我起床" (wake me up at 8:30 tomorrow); reminders survive restarts.
-- **Game companion**: when a common game is in front she stays visible in fullscreen, lets mouse clicks pass through, keeps the GPU free, cheers now and then and suggests a break every hour; optionally she can recognise victory / defeat screens and react.
+- **Game companion**: when a common game is in front she stays visible in fullscreen, lets every mouse click pass through her and her speech bubble (from the moment you switch to the game), keeps the GPU free, cheers now and then and suggests a break every hour; optionally she can recognise victory / defeat screens and react.
 - **Always on top or not**: switch it from the right-click menu or in settings. When she is not on top she stays behind other windows; clicking her or the tray icon brings her forward, and reminders lift her to the front for a moment.
 - **Transparency**: a slider in settings makes her see-through (the speech bubble stays clear); she turns solid while the mouse is on her.
 - **Mimicking you in Delta Force**: when you fire she fires her water gun, when you aim a crosshair appears, when you are hit she flashes red and flinches, and when you bandage, inject or take a pill she does the same (only key states and the screen are read; the game is never touched).
@@ -253,10 +253,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.4
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.5
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.4` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.5` when the companion edition is running.
 
 Updating to a newer official version through the in-app update replaces the companion edition's files.
 
