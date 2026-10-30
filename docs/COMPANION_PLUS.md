@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.6`（构建时传入 `-p:InformationalVersion=1.0.5-companion.6`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.7`（构建时传入 `-p:InformationalVersion=1.0.5-companion.7`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -83,7 +83,8 @@
 - 缺少的动作默认用形象包自己的待机动作代替，随机动作只从形象包提供的动作里挑；`skin.json` 里写 `"Missing": "fish"` 则沿用原版鱼鱼。可选 `animations.json` 增加原版没有的新动作。
 - 「打开形象包文件夹」会生成「形象包说明.txt」和全部 106 个动作名的「动作清单.txt」。
 - 某个动作播放失败时自动换回原版并提示，不会让鱼鱼卡住。
-- 形象包的动画按整段播放（不使用原版动画里的分段），游戏模仿时的枪口火光只在原版形象下显示。
+- 形象包的动画默认按整段播放（不使用原版动画里的分段），游戏模仿时的枪口火光只在原版形象下显示；`skin.json` 写 `"SameTiming": true`（每个动作与原版逐帧对应，例如调色版）时，分段、走动和水枪特效与原版完全一致。
+- 附带四套原版调色形象包：樱粉鱼鱼、薄荷鱼鱼、和风绯红鱼鱼、暗夜鱼鱼（只改变头发、眼睛、鱼尾等蓝色部分，106 个动作齐全）。
 
 ## 八、三角洲里模仿主人
 
@@ -102,7 +103,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.6
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.7
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。

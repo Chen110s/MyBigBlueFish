@@ -73,11 +73,11 @@ public partial class MainWindow
         if (phase is not ("Startup" or "Exit")) EndGreetingNotice();
         currentAction = rule.Id; animationPhase = phase;
         bool suspendedDrag = phase == "Drag";
-        // Clips from an appearance pack play whole: their timing is unknown, so segments of the original do not apply.
-        bool skinClip = IsSkinClip(rule);
+        // Clips from an appearance pack play whole unless the pack keeps the original timing (then segments apply).
+        bool foreign = IsForeignClip(rule);
         videoPlayer!.Play(Path.Combine(AnimationDirectory, rule.File), mirror, AnimationFinished,
-            startSeconds: skinClip ? 0 : suspendedDrag ? 1.5 : startSeconds, endSeconds: skinClip ? null : suspendedDrag ? 6 : endSeconds,
-            playbackRate: rule.Pool == "Greeting" ? 1.5 : 1, normalize: skinClip);
+            startSeconds: foreign ? 0 : suspendedDrag ? 1.5 : startSeconds, endSeconds: foreign ? null : suspendedDrag ? 6 : endSeconds,
+            playbackRate: rule.Pool == "Greeting" ? 1.5 : 1, normalize: IsSkinClip(rule));
     }
     private void PlayIdle()
     {

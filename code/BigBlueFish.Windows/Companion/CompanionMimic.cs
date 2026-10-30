@@ -308,7 +308,7 @@ public partial class MainWindow
     private void MimicShot()
     {
         // The flash is placed for the original water gun; with an appearance pack she only recoils.
-        if (currentAction != GunClip || animationPhase != "Mimic" || videoPlayer?.Frames == 0 || IsSkinClip(animationPolicy.Find(GunClip)))
+        if (currentAction != GunClip || animationPhase != "Mimic" || videoPlayer?.Frames == 0 || IsForeignClip(animationPolicy.Find(GunClip)))
         {
             Jolt(0, 2, .08);
             return;

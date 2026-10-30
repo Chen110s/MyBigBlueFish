@@ -18,10 +18,13 @@ internal sealed class CompanionSkinInfo
     public string? Author { get; set; }
     // What plays for an action the pack does not have: "idle" (the pack's own idle clip) or "fish" (the original).
     public string? Missing { get; set; }
+    // The clips follow the original timing frame for frame (e.g. a recoloured fish): segments, walking events
+    // and the water-gun effects then work exactly as with the original.
+    public bool SameTiming { get; set; }
 }
 
 internal sealed record CompanionSkin(string Folder, string Name, string? Author, bool UseIdleForMissing,
-    IReadOnlyDictionary<string, string> Files, IReadOnlyList<CompanionAnimationRule> Extra)
+    IReadOnlyDictionary<string, string> Files, IReadOnlyList<CompanionAnimationRule> Extra, bool SameTiming = false)
 {
     internal int Covered(IEnumerable<CompanionAnimationRule> original) => original.Count(r => Files.ContainsKey(r.Id));
 }
@@ -80,7 +83,7 @@ internal static class CompanionSkins
             if (files.Count == 0 && extra.Count == 0) return null;
             bool idle = files.ContainsKey(IdleId) && !string.Equals(info.Missing, "fish", StringComparison.OrdinalIgnoreCase);
             string name = string.IsNullOrWhiteSpace(info.Name) ? Path.GetFileName(folder) : info.Name!.Trim();
-            return new CompanionSkin(folder, name.Length > 24 ? name[..24] : name, info.Author, idle, files, extra);
+            return new CompanionSkin(folder, name.Length > 24 ? name[..24] : name, info.Author, idle, files, extra, info.SameTiming);
         }
         catch { return null; } // a broken pack is simply not offered
     }
@@ -102,7 +105,7 @@ internal static class CompanionSkins
             if (skin.Files.TryGetValue(rule.Id, out var path))
             {
                 copy.File = path;
-                copy.MoveKind = null; // walking events are timed to the original clips
+                if (!skin.SameTiming) copy.MoveKind = null; // walking events are timed to the original clips
             }
             else if (skin.UseIdleForMissing)
             {
@@ -124,6 +127,9 @@ public partial class MainWindow
 
     // True when a rule's clip comes from an appearance pack (its File is then a full path).
     private static bool IsSkinClip(CompanionAnimationRule rule) => Path.IsPathRooted(rule.File);
+
+    // A pack clip whose timing is unknown: it plays whole, and effects tied to the original frames are skipped.
+    private bool IsForeignClip(CompanionAnimationRule rule) => IsSkinClip(rule) && activeSkin is not { SameTiming: true };
 
     // Switches to the pack in `folder` ("" = the original fish). Returns false when the pack cannot be used.
     private bool ApplySkin(string? folder, bool replay)
@@ -257,6 +263,8 @@ public partial class MainWindow
                 缺少的动作
                   · 默认用这个形象包的「待机呼吸休闲」代替，随机动作只会从形象包提供的动作里挑；
                   · 想让缺少的动作沿用原版鱼鱼，在 skin.json 里写 "Missing": "fish"。
+                  · 如果每个动作都和原版逐帧对应（例如原版的调色版），写 "SameTiming": true，
+                    分段播放、走动、水枪特效都会和原版完全一样。
 
                 skin.json 示例（UTF-8 编码）：
                   { "Name": "我的形象", "Author": "我", "Missing": "idle" }
