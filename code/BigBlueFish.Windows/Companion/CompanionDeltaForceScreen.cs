@@ -8,6 +8,8 @@ namespace BigBlueFish.Windows;
 
 internal enum DeltaForceEvent { None, RaidStart, Extracted, Died, Downed, Victory, Defeat }
 
+internal enum DeltaForceHeal { None, Bandage, Injection, Pill, Medkit }
+
 // Havoc: the frame belongs to Havoc Warfare (全面战场: victory / defeat / redeploy), whose deaths are not raids.
 internal sealed record DeltaForceReading(DeltaForceEvent Event, string Map, long Haul, string BigText, int Words, bool Havoc = false);
 
@@ -180,6 +182,35 @@ internal static class DeltaForceScreen
             }
         }
         return 0;
+    }
+
+    private static readonly (DeltaForceHeal Kind, string[] Words)[] HealWords =
+    [
+        (DeltaForceHeal.Bandage, ["绷带", "止血带", "敷料", "包扎", "纱布"]),
+        (DeltaForceHeal.Injection, ["注射", "针剂", "肾上腺素", "兴奋剂", "血清", "强心针", "止血针", "镇静剂", "药剂"]),
+        (DeltaForceHeal.Pill, ["止痛药", "止痛片", "药片", "胶囊", "药丸", "口服", "布洛芬", "维生素"]),
+        (DeltaForceHeal.Medkit, ["急救包", "急救箱", "医疗包", "医疗箱", "手术包", "医疗"])
+    ];
+
+    // What the owner is using right after the heal key: the item name shown near the middle of the screen.
+    internal static DeltaForceHeal HealItem(IReadOnlyList<CompanionOcrWord> words, int width, int height)
+    {
+        if (words.Count == 0 || width <= 0 || height <= 0) return DeltaForceHeal.None;
+        var best = DeltaForceHeal.None;
+        double bestDistance = double.MaxValue;
+        foreach (var segment in Segments(words))
+        {
+            if (segment.CenterX < width * .2 || segment.CenterX > width * .8 || segment.CenterY < height * .2 || segment.CenterY > height * .95)
+                continue;
+            foreach (var (kind, keys) in HealWords)
+            {
+                if (!keys.Any(k => segment.Text.Contains(k, StringComparison.Ordinal))) continue;
+                double distance = Math.Abs(segment.CenterX - width / 2.0) + Math.Abs(segment.CenterY - height / 2.0);
+                if (distance < bestDistance) { best = kind; bestDistance = distance; }
+                break;
+            }
+        }
+        return best;
     }
 
     // The first plausible amount in the text (0: none); -1 for a negative number, a loss, which is never a haul.

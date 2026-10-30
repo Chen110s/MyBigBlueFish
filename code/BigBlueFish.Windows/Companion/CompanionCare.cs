@@ -66,6 +66,7 @@ public partial class MainWindow
         SaveBondSoon();
         PreviewMouseMove += CompanionPatMove;
         PreviewMouseDown += RaiseOnTouch;
+        InitializeOpacity();
         careTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         careTimer.Tick += CareTick;
         careTimer.Start();
@@ -74,6 +75,7 @@ public partial class MainWindow
     private void ShutdownCare()
     {
         careTimer?.Stop();
+        StopMimic();
         chatWindow?.Close();
         petPanel?.Close();
         SetClickThrough(false);

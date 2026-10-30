@@ -88,6 +88,7 @@ public partial class MainWindow
         if (PuppetActive) { PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
         if (animationPhase == "Drag") return; // Hold the final suspended pose until mouse release.
         if (CrawlAnimationFinished()) return;
+        if (MimicAnimationFinished()) return;
         if (animationPhase == "Outbound" && movementRule != null)
         {
             Left = movementEnd;
@@ -113,6 +114,7 @@ public partial class MainWindow
         if (PuppetActive) { EndCrawl(true); PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
         if (ContinueCrawlAtBoundary()) return;
         if (FocusBoundary()) return;
+        if (mimicActive) { PlayIdle(); return; } // in Delta Force she stays ready to mimic instead of wandering off
         if (exitAnimation || dragging || hiddenByUser || fullscreenHidden || companionSettings != null) { PlayIdle(); return; }
         var local = DateTime.Now;
         var date = local.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);

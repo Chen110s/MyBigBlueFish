@@ -65,6 +65,14 @@ internal sealed class CompanionPreferences
     public bool DeltaForceReactions { get; set; } = true;
     public bool DeltaForceLog { get; set; } = true;
     public bool AlwaysOnTop { get; set; } = true;
+    public int PetOpacity { get; set; } = 100;
+    public bool OpacityHoverRestore { get; set; } = true;
+    public bool GameMimic { get; set; } = true;
+    public bool MimicHurt { get; set; } = true;
+    public int HealKey { get; set; } = 0x35;
+    public int BandageKey { get; set; }
+    public int InjectKey { get; set; }
+    public int PillKey { get; set; }
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -129,6 +137,11 @@ internal sealed class CompanionPreferences
                     s.FocusMinutes = Math.Clamp(s.FocusMinutes, 5, 120);
                     s.BreakMinutes = Math.Clamp(s.BreakMinutes, 1, 60);
                     s.ExtraGames ??= "";
+                    s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
+                    s.HealKey = Math.Clamp(s.HealKey, 0, 255);
+                    s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);
+                    s.InjectKey = Math.Clamp(s.InjectKey, 0, 255);
+                    s.PillKey = Math.Clamp(s.PillKey, 0, 255);
                     if (s.ExtraGames.Length > 500) s.ExtraGames = s.ExtraGames[..500];
                     s.BreakfastHour = Math.Clamp(s.BreakfastHour, 0, 23);
                     s.LunchHour = Math.Clamp(s.LunchHour, 0, 23);

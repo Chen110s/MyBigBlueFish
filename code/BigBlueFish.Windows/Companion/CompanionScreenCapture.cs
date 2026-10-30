@@ -119,6 +119,13 @@ internal static class CompanionScreenCapture
     [DllImport("user32.dll")]
     private static extern bool IsWindowVisible(IntPtr handle);
 
+    [DllImport("gdi32.dll")]
+    private static extern bool StretchBlt(IntPtr destination, int x, int y, int width, int height, IntPtr source, int sourceX, int sourceY,
+        int sourceWidth, int sourceHeight, uint rop);
+
+    [DllImport("gdi32.dll")]
+    private static extern int SetStretchBltMode(IntPtr hdc, int mode);
+
     // A game as it is shown on screen (DirectX games often render black through PrintWindow).
     // The pet's own windows sit above the game, so they are blacked out and her words are never read back.
     internal static CompanionWindowImage? CaptureGame(IntPtr handle, int maxDimension)
@@ -154,6 +161,66 @@ internal static class CompanionScreenCapture
         using var output = new MemoryStream();
         normalized.Save(output, ImageFormat.Png);
         return new("data:image/png;base64," + Convert.ToBase64String(output.ToArray()), normalized.Width, normalized.Height);
+    }
+
+    // Share of strongly red pixels along the screen edges and around the crosshair, where a game shows
+    // damage (red vignette, hit direction markers). The pet's own windows are skipped. -1: no picture.
+    internal static double RedShare(IntPtr handle)
+    {
+        using var dpi = new CaptureDpiScope();
+        if (!CompanionNative.IsVisibleCaptureTarget(handle) || !CompanionNative.GetWindowRect(handle, out var rect))
+            return -1;
+        var area = Rectangle.Intersect(Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom),
+            System.Windows.Forms.Screen.FromHandle(handle).Bounds);
+        if (area.Width < 200 || area.Height < 200)
+            return -1;
+        // One small, point-sampled copy of the whole game picture per call keeps this cheap for the game.
+        const int W = 192, H = 108;
+        using var bitmap = new Bitmap(W, H, PixelFormat.Format32bppArgb);
+        using (var graphics = Graphics.FromImage(bitmap))
+        {
+            var target = graphics.GetHdc();
+            var screen = GetDC(IntPtr.Zero);
+            try
+            {
+                SetStretchBltMode(target, 3 /* COLORONCOLOR */);
+                if (!StretchBlt(target, 0, 0, W, H, screen, area.Left, area.Top, area.Width, area.Height, RasterOperationSourceCopy))
+                    return -1;
+            }
+            finally
+            {
+                ReleaseDC(IntPtr.Zero, screen);
+                graphics.ReleaseHdc(target);
+            }
+        }
+        var own = OwnWindowRectangles();
+        long red = 0, total = 0;
+        var data = bitmap.LockBits(new Rectangle(0, 0, W, H), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            var row = new byte[data.Stride];
+            for (int y = 0; y < H; y++)
+            {
+                Marshal.Copy(data.Scan0 + y * data.Stride, row, 0, data.Stride);
+                for (int x = 0; x < W; x++)
+                {
+                    // Screen edges (vignette) and a ring around the crosshair (hit direction markers).
+                    double fx = (x + .5) / W, fy = (y + .5) / H;
+                    bool edge = fx < .06 || fx > .94 || fy < .08 || fy > .92;
+                    double ring = Math.Max(Math.Abs(fx - .5) / .15, Math.Abs(fy - .5) / .2);
+                    if (!edge && ring is < .7 or > 1.0) continue;
+                    int screenX = area.Left + (int)(fx * area.Width), screenY = area.Top + (int)(fy * area.Height);
+                    bool mine = false;
+                    foreach (var window in own) if (window.Contains(screenX, screenY)) { mine = true; break; }
+                    if (mine) continue;
+                    int b = row[x * 4], g = row[x * 4 + 1], r = row[x * 4 + 2];
+                    total++;
+                    if (r >= 110 && r >= g * 2 && r >= b * 2) red++;
+                }
+            }
+        }
+        finally { bitmap.UnlockBits(data); }
+        return total == 0 ? -1 : (double)red / total;
     }
 
     private static List<Rectangle> OwnWindowRectangles()

@@ -428,7 +428,8 @@ public partial class MainWindow
                 if (now >= deltaDownedCooldown && (now - deltaLastResultUtc).TotalSeconds > 60)
                 {
                     deltaDownedCooldown = now.AddMinutes(2);
-                    DeltaSay(Fill(Pick(DeltaDownedLines)), "点击回应-害羞惊讶");
+                    if (mimicActive) MimicHurt(true); // flinch first; her line follows without replacing that pose
+                    DeltaSay(Fill(Pick(DeltaDownedLines)), mimicActive ? null : "点击回应-害羞惊讶");
                 }
                 break;
             case DeltaForceEvent.Victory:
@@ -711,5 +712,41 @@ public partial class MainWindow
         }));
         page.Children.Add(row);
         note("聊天里也可以说「撤离成功了」「寄了」「出大红了」，或者问鱼鱼「今天战绩怎么样」「帮我复盘」。");
+
+        // ---- mimic
+        toggle("模仿主人：开枪、瞄准时她举起水枪同步开火、瞄准，受伤时一抖，缠绷带、打药、吃药时做同样的动作", preferences.GameMimic, v =>
+        {
+            preferences.GameMimic = v;
+            if (!v && mimicActive) StopMimic();
+        });
+        toggle("受伤识别（实验：画面边缘和准星周围突然变红时算受伤）", preferences.MimicHurt, v => preferences.MimicHurt = v);
+        void KeyChoice(string caption, int current, Action<int> change)
+        {
+            var line = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
+            line.Children.Add(new TextBlock { Text = caption, Width = 230, VerticalAlignment = VerticalAlignment.Center });
+            var combo = new ComboBox { MinWidth = 110 };
+            foreach (var (name, _) in MimicKeyChoices) combo.Items.Add(name);
+            int index = Array.FindIndex(MimicKeyChoices, k => k.Key == current);
+            combo.SelectedIndex = index >= 0 ? index : 0;
+            combo.SelectionChanged += (_, _) =>
+            {
+                if (combo.SelectedIndex < 0) return;
+                change(MimicKeyChoices[combo.SelectedIndex].Key);
+                SaveCompanion();
+            };
+            line.Children.Add(combo);
+            page.Children.Add(line);
+        }
+        KeyChoice("治疗键（游戏默认 5：按住选、松开用）", preferences.HealKey, k => preferences.HealKey = k);
+        KeyChoice("单独绑定的绷带键（没有就选「无」）", preferences.BandageKey, k => preferences.BandageKey = k);
+        KeyChoice("单独绑定的针剂键", preferences.InjectKey, k => preferences.InjectKey = k);
+        KeyChoice("单独绑定的止痛药键", preferences.PillKey, k => preferences.PillKey = k);
+#if COMPANION_OCR
+        const string healNote = "按治疗键后，鱼鱼会看一眼画面中间的物品名，分辨是绷带、针剂还是止痛药。";
+#else
+        const string healNote = "这个版本认不出治疗键用的是哪种药品，会统一做急救动作；单独绑定的绷带 / 针剂 / 止痛药键可以准确对应。";
+#endif
+        note("只读取按键是否按下，不向游戏发送任何操作、也不读取游戏内存。开枪、瞄准和治疗只在鼠标指针隐藏（正在操作角色）时才算；"
+            + healNote + "需要开启上面的游戏陪玩。");
     }
 }

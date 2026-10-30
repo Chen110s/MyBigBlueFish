@@ -148,6 +148,7 @@ public partial class MainWindow
         }
         gameForeground = gameActive && isGame;
         deltaForeground = gameForeground && isDelta;
+        UpdateMimic(hwnd);
         SetClickThrough(gameForeground && preferences.GameCompanion);
         if (gameActive) GameTick(now, hwnd);
     }

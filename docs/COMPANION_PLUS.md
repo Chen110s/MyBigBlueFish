@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.3`（构建时传入 `-p:InformationalVersion=1.0.5-companion.3`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.4`（构建时传入 `-p:InformationalVersion=1.0.5-companion.4`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -71,17 +71,34 @@
 - 定时提醒、专注结束、久坐 / 喝水 / 护眼提醒时，她会暂时跳到最前，气泡消失后回到窗口后面；开着游戏陪玩时，游戏在前台期间她仍待在游戏上面。
 - 对话气泡、聊天框和小面板跟随她的置顶状态。
 
-## 六、构建
+## 六、透明度
+
+- 设置 → 陪伴与外观 →「透明度」滑块：0%（不透明）到 80%，只改变鱼鱼本身，对话气泡保持清晰。
+- 「鼠标移到鱼鱼身上时恢复不透明」（默认开启），方便点她、拖她。
+
+## 七、三角洲里模仿主人
+
+开启「游戏陪玩」且前台是《三角洲行动》时，鱼鱼会同步模仿你的操作（设置 → 互动与关怀 →「三角洲行动 · 烽火地带」里可关闭）：
+
+- **开枪**：按下左键她就举起水枪（「玩水枪」动作中举枪的一段），每一发都有枪口火光、后坐抖动，偶尔弹出弹壳；按住连射约每秒 9 发。
+- **瞄准**：按住右键（或单击右键切换开镜）时，她的枪口前出现准星。
+- **受伤**（实验）：每 0.2 秒看一眼画面边缘和准星周围，突然变红时她全身红闪、抖一下，偶尔「被吓一跳」；被击倒时更强烈。
+- **缠绷带 / 打药 / 吃药**：松开治疗键（游戏默认 5）时她先拿出急救包，随后看一眼画面中间的物品名，换成对应动作：白色绷带一圈圈缠上、针筒推进手臂、药丸落进嘴里「咕嘟～」，最后冒出绿色「+」。如果你单独绑定了绷带 / 针剂 / 止痛药键，可在设置里选上，直接对应。
+- 开枪和瞄准只在鼠标指针隐藏（正在操作角色）时才算，打开背包、地图等界面时不会误判；切到其他窗口时自动停止。
+- 只读取按键状态和屏幕画面，不向游戏发送任何操作、也不读取游戏内存。
+- 现有动画中没有开枪、包扎等动作，这些道具和特效是在鱼鱼身上实时绘制的。
+
+## 八、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.3
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.4
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 七、改动的文件
+## 九、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -98,6 +115,8 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionDeltaForce.cs` | 三角洲行动·烽火地带：战绩、反应台词与动作、聊天、复盘、设置 |
 | `CompanionDeltaForceScreen.cs` | 烽火地带画面识别（进图 / 撤离 / 阵亡 / 被击倒 / 带出价值） |
 | `CompanionTopmost.cs` | 置顶 / 不置顶切换、提醒时临时置顶 |
+| `CompanionOpacity.cs` | 透明度与悬停恢复 |
+| `CompanionMimic.cs` | 三角洲里模仿开枪、瞄准、受伤、缠绷带、打药、吃药 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
 修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
