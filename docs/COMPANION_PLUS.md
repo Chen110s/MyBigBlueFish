@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.8`（构建时传入 `-p:InformationalVersion=1.0.5-companion.8`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.9`（构建时传入 `-p:InformationalVersion=1.0.5-companion.9`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -94,6 +94,15 @@
 - 比上次播报涨跌超过设定值（默认 5 元/克）时，鱼鱼播报并配动作（涨：金袋叮当，跌：数金皱眉）；玩游戏、专注时不打扰。
 - 可设「高于 / 低于」提醒价，越过时重要提醒（隐藏时走系统通知），回落后重新生效。
 - 右键「招行金价」、聊天问「金价多少」直接给出最新价、今日涨跌、最高最低；设置页显示今日走势小图和最近的变化，可打开记录文件。
+- **金价推测（天 / 周 / 月 / 年）**：用上海黄金交易所同一品种的历史日线（东方财富，2010 年起，缓存在 `data\gold-history-*.csv`，每 3 小时增量更新）推算下个交易日、一周、一个月、一年后的价格区间：
+  - 波动：近期日波动按指数加权（λ = 0.97）估计，并随周期逐渐回到近 3 年的平均水平（持续系数 0.985）；
+  - 趋势：只取长期平均涨幅的一半，再给趋势本身加 ±10%/年 的不确定性（主要放宽一年的区间）；
+  - 区间：中间值 ± 1.0 σ（约 68%）和 ± 2.2 σ（约 95%，黄金有厚尾，比正态的 1.96 宽）；另给出历史上同样周期上涨的比例，以及现价相对 20 / 60 / 250 日均线的位置、近 20 日涨跌、距一年高点的距离；
+  - 回测（Au99.99，2013–2026 每个交易日滚动推算）：天 / 周 / 月的 68% 区间命中约 72–75%、95% 区间约 95%；最近三年行情剧烈，月度 95% 区间降到约 90%；一年的区间全期约 66% / 95%，但在 2024–2025 年大涨中明显失准（最近三年只有约 17% / 73%），所以只能当个大概；
+  - 周期从最后一根日线算起；那根日线还在交易时（盘中），每个周期多算半天的波动；
+  - 每个交易日第一次推测（历史日线刚更新、基准是现价或已收盘的价格时）记到 `data\gold-forecasts.csv`，到期后自动对答案（设置页显示命中次数和平均误差）；Au100g 借用 Au99.99 的日线，不记录；
+  - 设置页「招商银行金价」下有推测表；聊天问「金价预测」「明天金价会涨吗」「黄金下个月走势」会回答对应周期；右键「招行金价」也附一行推测。问到买卖时鱼鱼会说明她不是理财顾问；问的是另一种金属（例如盯着黄金却问白银）时，她会提示先在设置里换品种，不拿错的数字回答；「黄金周」「黄金段位」之类不当成金价问题。
+  - 这是统计推算，不是预言，也不构成投资建议。
 
 ## 九、三角洲里模仿主人
 
@@ -112,7 +121,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.8
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.9
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
@@ -138,6 +147,8 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionMimic.cs` | 三角洲里模仿开枪、瞄准、受伤、缠绷带、打药、吃药 |
 | `CompanionSkins.cs` | 形象包：扫描、动作替换、缺失动作处理、设置与说明文件 |
 | `CompanionGold.cs` | 招商银行金价：获取、记录变化、涨跌播报与提醒价、走势图 |
+| `CompanionGoldForecast.cs` | 金价推测模型：历史日线解析与缓存、波动率区间、均线趋势、推测记录与对答案 |
+| `CompanionGoldForecastWindow.cs` | 金价推测：下载历史日线、聊天回答、设置页推测表 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
 修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

@@ -74,7 +74,7 @@ public partial class MainWindow
         {
             companionContextMenu.IsOpen = false;
             if (preferences.GoldWatch && goldQuote == null) _ = FetchGold(false);
-            Say(GoldSummary(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : goldQuote != null ? "余额-数金皱眉" : null);
+            Say(GoldMenuText(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : goldQuote != null ? "余额-数金皱眉" : null);
         };
         companionContextMenu.Items.Add(goldItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };

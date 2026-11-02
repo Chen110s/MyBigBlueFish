@@ -94,12 +94,15 @@ public partial class MainWindow
             goldWeb.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) BigBlueFish");
         LoadGoldToday();
         // Automated UI tests run offline.
-        nextGoldFetch = App.Args.Contains("--test-mode") ? DateTime.MaxValue : DateTime.UtcNow.AddSeconds(8);
+        goldOffline = App.Args.Contains("--test-mode");
+        nextGoldFetch = goldOffline ? DateTime.MaxValue : DateTime.UtcNow.AddSeconds(8);
+        nextGoldHistoryTry = goldOffline ? DateTime.MaxValue : DateTime.UtcNow.AddSeconds(20);
     }
 
     // CareTick, every second.
     private void UpdateGold(DateTime now)
     {
+        UpdateGoldHistory(now);
         if (!preferences.GoldWatch || goldFetching || now < nextGoldFetch) return;
         bool open = CompanionGoldFeed.MarketOpen(DateTime.Now);
         // Outside trading hours the quote does not move: look far less often.
@@ -109,6 +112,7 @@ public partial class MainWindow
 
     private async Task FetchGold(bool announce = true)
     {
+        if (goldOffline) return;
         goldFetching = true;
         try
         {
@@ -135,6 +139,7 @@ public partial class MainWindow
         if (goldDay != local.Date) { goldDay = local.Date; goldToday.Clear(); }
         bool changed = goldQuote == null || goldQuote.Price != quote.Price || goldQuote.Code != quote.Code;
         goldQuote = quote;
+        if (changed) goldForecastView?.Invoke(); // the forecast's middle follows the live price
         if (!changed && !double.IsNaN(goldLastRecorded)) return;
         if (quote.Price != goldLastRecorded) RecordGold(quote, local);
         if (!announce) return;
@@ -239,12 +244,18 @@ public partial class MainWindow
         return text.ToString();
     }
 
-    private static readonly Regex GoldAsk = new(@"金价|黄金.{0,3}(价|多少|行情|涨|跌)|[Aa][Uu]\s?99|招行.{0,3}黄金");
+    private static readonly Regex GoldAsk = new(@"(?<![基租押奖现资薪定佣酬])金价|黄金.{0,6}(价|多少|行情|涨|跌|走势|趋势|预测|推测|前景)|金子.{0,4}(价|涨|跌|走势)"
+        + @"|[Aa][Uu]\s?99|招行.{0,3}(黄金|白银)|(白银|银价|铂金|铂价).{0,6}(多少|行情|涨|跌|走势|趋势|预测|推测|前景)"
+        + @"|(买|卖|入手|抄底|囤|投资).{0,4}(黄金|金条|金子|白银|银条)|(黄金|金条|金子|白银|银条).{0,4}(买|卖|入手|抄底|投资)");
+    // Holidays, prime time and game ranks ("黄金段位跌回白银") are not about the metal.
+    private static readonly Regex GoldNotAbout = new("黄金周|黄金档|黄金时|黄金比例|黄金分割|黄金搭档|黄金矿工|段位|上分|掉分|掉段|排位|晋级|王者|星耀|钻石|青铜|宗师|跌回|打回");
 
-    // Chat: "金价多少" is answered with the live quote.
+    // Chat: "金价多少" is answered with the live quote, "金价明天会涨吗" with the forecast.
     private bool TryGoldChat(string message)
     {
-        if (!GoldAsk.IsMatch(message)) return false;
+        if (!GoldAsk.IsMatch(message) || GoldNotAbout.IsMatch(message)) return false;
+        if (GoldOtherMetal(message) is { } other) { ChatReply(message, other, remember: false); return true; }
+        if (IsGoldForecastAsk(message) || GoldAdviceAsk.IsMatch(message)) { AnswerGoldForecast(message); return true; }
         if (preferences.GoldWatch && goldQuote == null && !goldFetching) _ = FetchGold(false);
         ChatReply(message, GoldSummary(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : "余额-数金皱眉", remember: false);
         return true;
@@ -276,6 +287,9 @@ public partial class MainWindow
             goldAnnounced = goldLastRecorded = double.NaN;
             LoadGoldToday();
             nextGoldFetch = DateTime.UtcNow;
+            nextGoldHistoryTry = DateTime.MinValue;
+            goldForecastView?.Invoke();
+            if (preferences.GoldWatch) _ = RefreshGoldHistory(false);
         }));
         first.Children.Add(Caption("刷新", 40));
         first.Children.Add(Choice(new List<(int, string)> { (30, "每 30 秒"), (60, "每 1 分钟"), (120, "每 2 分钟"), (300, "每 5 分钟") },
@@ -333,7 +347,8 @@ public partial class MainWindow
             }
             catch { }
         }));
-        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」或聊天时问「金价多少」也能查看。");
+        AddGoldForecastSettings(page);
+        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」或聊天时问「金价多少」也能查看；问「金价预测」「明天金价会涨吗」「黄金下个月走势」鱼鱼会给出推测。");
     }
 
     // Today's price line (records since midnight), drawn small under the summary.
