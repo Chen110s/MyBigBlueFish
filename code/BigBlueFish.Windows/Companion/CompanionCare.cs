@@ -81,6 +81,7 @@ public partial class MainWindow
         StopMimic();
         chatWindow?.Close();
         petPanel?.Close();
+        goldPanel?.Close();
         SetClickThrough(false);
         SaveBondNow();
         memory?.Save();

@@ -81,6 +81,7 @@ internal sealed class CompanionPreferences
     public double GoldStep { get; set; } = 5;
     public double GoldAlertHigh { get; set; }
     public double GoldAlertLow { get; set; }
+    public double GoldSpread { get; set; }
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -151,6 +152,7 @@ internal sealed class CompanionPreferences
                     s.GoldStep = double.IsFinite(s.GoldStep) ? Math.Clamp(s.GoldStep, .5, 1000) : 5;
                     s.GoldAlertHigh = double.IsFinite(s.GoldAlertHigh) && s.GoldAlertHigh > 0 ? s.GoldAlertHigh : 0;
                     s.GoldAlertLow = double.IsFinite(s.GoldAlertLow) && s.GoldAlertLow > 0 ? s.GoldAlertLow : 0;
+                    s.GoldSpread = double.IsFinite(s.GoldSpread) && s.GoldSpread > 0 ? Math.Min(s.GoldSpread, 100000) : 0;
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

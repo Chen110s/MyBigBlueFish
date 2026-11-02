@@ -106,7 +106,7 @@ public partial class MainWindow
         // The variety was switched while this download ran: let the next tick fetch the new one right away.
         if (goldBarsCode != history) nextGoldHistoryTry = DateTime.MinValue;
         UpdateGoldForecast();
-        goldForecastView?.Invoke();
+        NotifyGoldViews();
     }
 
     // Cheap: recomputed whenever it is shown, so the middle estimate follows the live price.
@@ -154,19 +154,6 @@ public partial class MainWindow
 
     private string GoldForecastName => GoldName.Split('（')[0];
 
-    // Right-click 「招行金价」: the live quote plus a one-line forecast when the history is at hand.
-    private string GoldMenuText()
-    {
-        string text = GoldSummary();
-        if (!preferences.GoldWatch) return text;
-        UpdateGoldForecast();
-        MaybeRefreshGoldHistory();
-        if (goldForecast is not { } f || f.Row(1) is not { } day || f.Row(21) is not { } month) return text;
-        string P(double v) => CompanionGoldForecast.Price(v);
-        return text + $"\n按历史波动，约 68% 的情况下：下个交易日 {P(day.Low68)}～{P(day.High68)}，一个月 {P(month.Low68)}～{P(month.High68)}"
-            + "（统计推算，不构成投资建议；问我「金价预测」看更多）";
-    }
-
     // Chat / bubble text: one horizon, or (days == null) all four.
     private string GoldForecastText(int? days, bool advice = false)
     {
@@ -189,7 +176,10 @@ public partial class MainWindow
             text.Append($"招行 {GoldForecastName} 推测（{basis}；按历史波动，约 68% 的情况落在这些区间）：");
             foreach (var r in f.Rows) text.Append($"\n{r.Label}：{P(r.Low68)}～{P(r.High68)}");
         }
-        text.Append('\n').Append(f.Trend).Append("只是统计推算，不是预言，也不构成投资建议～");
+        text.Append('\n').Append(f.Trend);
+        string brief = CompanionGoldFactors.Brief(f.Code, goldFactorBars);
+        if (brief.Length > 0) text.Append('\n').Append(brief);
+        text.Append("\n只是统计推算，不是预言，也不构成投资建议～表格、判断因素和点差回本在右键「招行金价」的金价面板里。");
         return text.ToString();
     }
 
@@ -241,6 +231,7 @@ public partial class MainWindow
         {
             ChatReply(message, GoldForecastText(days, advice), "余额-钱袋如常", remember: false);
             MaybeRefreshGoldHistory();
+            MaybeRefreshGoldFactors();
             return;
         }
         ChatReply(message, "鱼鱼去翻一下这些年的金价日线，算好马上告诉你～", "余额-钱袋如常", remember: false);
@@ -255,72 +246,37 @@ public partial class MainWindow
             "余额-钱袋如常");
     }
 
-    // ---------------------------------------------------------------- settings: the forecast table
+    // ---------------------------------------------------------------- settings: short summary, the tables live in the gold panel
     private void AddGoldForecastSettings(StackPanel page)
     {
-        page.Children.Add(new TextBlock { Text = "金价推测（天 / 周 / 月 / 年）", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 2) });
+        page.Children.Add(new TextBlock { Text = "金价面板与推测（天 / 周 / 月 / 年）", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 2) });
         page.Children.Add(new TextBlock { FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4),
-            Text = "用上海黄金交易所同一品种的历史日线（来自东方财富）和波动率模型，推算之后的价格区间：按历史波动，约 68% / 95% 的情况会落在其中。"
-                + "中间值只算了长期平均涨幅的一半，不代表看涨或看跌。这是统计推算，不是预言，也不构成投资建议；周期越长越不准，一年的区间只能当个大概。" });
-        var table = new Grid { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 2, 0, 4) };
-        foreach (double width in new double[] { 96, 120, 132, 132, 84 }) table.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width) });
-        page.Children.Add(table);
-        var trend = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2) };
-        page.Children.Add(trend);
+            Text = "金价面板用表格列出：实时行情、价格走势图、天 / 周 / 月 / 年推测、判断因素（国际金价、美联储预期、美元、避险、央行购金、人民币汇率、产品点差）、"
+                + "国内金价拆解、点差回本、你的计划价位和历史参考价位。推测用上海黄金交易所同一品种的历史日线和波动率模型，是统计推算，不构成投资建议。" });
         var score = new TextBlock { FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4) };
         page.Children.Add(score);
-        var status = new TextBlock { FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
-        page.Children.Add(status);
-
-        TextBlock Cell(string text, int row, int column, bool header = false, Brush? brush = null)
-        {
-            var cell = new TextBlock { Text = text, Margin = new Thickness(0, 2, 6, 2), VerticalAlignment = VerticalAlignment.Center,
-                Foreground = brush ?? (header ? Brushes.SlateGray : Brushes.Black), FontSize = header ? 11 : 12 };
-            Grid.SetRow(cell, row);
-            Grid.SetColumn(cell, column);
-            table.Children.Add(cell);
-            return cell;
-        }
         void Fill()
         {
             UpdateGoldForecast();
-            table.Children.Clear();
-            table.RowDefinitions.Clear();
             var f = goldForecast;
-            status.Text = goldHistoryStatus + (preferences.GoldVariety == "AU100G" ? " Au100g 没有单独的日线，按 Au99.99 的波动推算。" : "");
-            if (f == null)
-            {
-                table.RowDefinitions.Add(new RowDefinition());
-                Grid.SetColumnSpan(Cell(goldHistoryLoading ? "正在读取历史日线……"
-                    : goldOffline ? "测试模式下不联网。" : "还没有足够的历史日线（至少 300 个交易日）。", 0, 0), 5);
-                trend.Text = "";
-                score.Text = "";
-                return;
-            }
-            string P(double v) => CompanionGoldForecast.Price(v);
-            for (int i = 0; i <= f.Rows.Count; i++) table.RowDefinitions.Add(new RowDefinition());
-            Cell("周期", 0, 0, true); Cell("中间值", 0, 1, true); Cell("68% 区间", 0, 2, true); Cell("95% 区间", 0, 3, true); Cell("历史上涨占比", 0, 4, true);
-            for (int i = 0; i < f.Rows.Count; i++)
-            {
-                var r = f.Rows[i];
-                Cell(r.Label, i + 1, 0);
-                Cell(P(r.Center), i + 1, 1);
-                Cell($"{P(r.Low68)}～{P(r.High68)}", i + 1, 2);
-                Cell($"{P(r.Low95)}～{P(r.High95)}", i + 1, 3, brush: Brushes.DimGray);
-                Cell(double.IsFinite(r.UpShare) ? $"{r.UpShare * 100:0}%" : "—", i + 1, 4);
-            }
-            trend.Text = $"基准：{(f.LiveBase ? "招行现价" : $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘")} {P(f.Base)} {CompanionGoldForecast.Unit(f.Code)}；"
-                + $"日波动 {f.DailyVolatility * 100:0.00}%（近 3 年平均 {f.LongVolatility * 100:0.00}%）。{f.Trend}";
-            score.Text = GoldForecastScoreText();
+            score.Text = (f != null && f.Row(1) is { } day && f.Row(21) is { } month
+                    ? $"按历史波动，约 68% 的情况：下个交易日 {CompanionGoldForecast.Price(day.Low68)}～{CompanionGoldForecast.Price(day.High68)}，"
+                      + $"一个月 {CompanionGoldForecast.Price(month.Low68)}～{CompanionGoldForecast.Price(month.High68)}。"
+                    : "")
+                + GoldForecastScoreText() + " " + goldHistoryStatus
+                + (preferences.GoldVariety == "AU100G" ? " Au100g 没有单独的日线，按 Au99.99 的波动推算。" : "");
         }
         // Kept only while the page is on screen, so a closed settings window is not held or redrawn.
         Action view = Fill;
         goldForecastView = view;
-        table.Loaded += (_, _) => { if (goldForecastView != view) { goldForecastView = view; view(); } };
-        table.Unloaded += (_, _) => { if (goldForecastView == view) goldForecastView = null; };
+        score.Loaded += (_, _) => { if (goldForecastView != view) { goldForecastView = view; view(); } };
+        score.Unloaded += (_, _) => { if (goldForecastView == view) goldForecastView = null; };
         view();
 
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 4) };
+        var panel = BigBlueFish.Deployment.ModernUI.Button("打开金价面板", ShowGoldPanel, true);
+        panel.Margin = new Thickness(0, 0, 8, 0);
+        buttons.Children.Add(panel);
         var refresh = BigBlueFish.Deployment.ModernUI.Button("更新推测", async () =>
         {
             if (goldHistoryTask is { IsCompleted: false }) return;

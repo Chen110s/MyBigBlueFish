@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.9`（构建时传入 `-p:InformationalVersion=1.0.5-companion.9`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.10`（构建时传入 `-p:InformationalVersion=1.0.5-companion.10`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -101,8 +101,18 @@
   - 回测（Au99.99，2013–2026 每个交易日滚动推算）：天 / 周 / 月的 68% 区间命中约 72–75%、95% 区间约 95%；最近三年行情剧烈，月度 95% 区间降到约 90%；一年的区间全期约 66% / 95%，但在 2024–2025 年大涨中明显失准（最近三年只有约 17% / 73%），所以只能当个大概；
   - 周期从最后一根日线算起；那根日线还在交易时（盘中），每个周期多算半天的波动；
   - 每个交易日第一次推测（历史日线刚更新、基准是现价或已收盘的价格时）记到 `data\gold-forecasts.csv`，到期后自动对答案（设置页显示命中次数和平均误差）；Au100g 借用 Au99.99 的日线，不记录；
-  - 设置页「招商银行金价」下有推测表；聊天问「金价预测」「明天金价会涨吗」「黄金下个月走势」会回答对应周期；右键「招行金价」也附一行推测。问到买卖时鱼鱼会说明她不是理财顾问；问的是另一种金属（例如盯着黄金却问白银）时，她会提示先在设置里换品种，不拿错的数字回答；「黄金周」「黄金段位」之类不当成金价问题。
+  - 设置页「招商银行金价」下有推测摘要和「打开金价面板」；聊天问「金价预测」「明天金价会涨吗」「黄金下个月走势」会回答对应周期；右键「招行金价」打开金价面板。问到买卖时鱼鱼会说明她不是理财顾问；问的是另一种金属（例如盯着黄金却问白银）时，她会提示先在设置里换品种，不拿错的数字回答；「黄金周」「黄金段位」之类不当成金价问题。
   - 这是统计推算，不是预言，也不构成投资建议。
+- **金价面板（表格）**：右键「招行金价」打开独立窗口，全部用表格展示：
+  - 实时行情：招行全部黄金 / 白银 / 铂金品种的最新价、涨跌、开盘、昨收、最高、最低，正在盯的品种高亮；
+  - 价格走势折线图：今天、近 7 天（招行实时报价记录）以及 1 个月 / 3 个月 / 1 年 / 3 年 / 全部（日线），带 20 日均线、未来 68% 推测扇形、计划价位虚线，鼠标悬停显示日期和价格；
+  - 天 / 周 / 月 / 年推测表；
+  - 判断因素表：国际金价（伦敦金 / 伦敦银）、美联储预期（美债 2 年、10 年收益率）、美元指数、避险情绪（标普 500）、央行购金（按月公布，只作背景）、人民币汇率（离岸人民币与中间价）、产品点差——每项给出最新值、近 20 个交易日变化、一般规律和现在的情况（↑ 偏支撑 / ↓ 偏压力）；数据来自东方财富日线，打开面板时下载、每 30 分钟更新；
+  - 国内金价拆解：国内金价 ≈ 国际金价 × 美元兑人民币 ÷ 31.1035 + 国内溢价，并把近 20 个交易日的涨跌拆成国际价格、汇率和溢价三部分；
+  - 点差成本与回本：填入产品点差（买入价 − 回购价），给出各持有期的回本价、到期涨过回本价的统计概率、点差占典型波动的比例；
+  - 我的计划价位：计划买入价 / 卖出价（即「低于 / 高于」提醒价），显示距现价、一周 / 一个月内按波动粗算的触及概率和提醒状态；两个都设时给出扣点差后的差价；
+  - 历史参考价位：近 20 / 60 / 250 个交易日和全部历史的最高（日期）、最低（日期）、均价和现价位置。
+  - 回测（2011–2026）：这些因素很能解释已经发生的涨跌（国内金价 20 日涨跌与「国际金价 + 汇率」相关约 0.95），但对下个月涨跌几乎没有预测力（相关不到 0.1），所以推测区间不按它们调整，只作判断参考。面板不给买卖建议，买不买、什么时候买由你决定。
 
 ## 九、三角洲里模仿主人
 
@@ -121,7 +131,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.9
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.10
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
@@ -148,7 +158,9 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionSkins.cs` | 形象包：扫描、动作替换、缺失动作处理、设置与说明文件 |
 | `CompanionGold.cs` | 招商银行金价：获取、记录变化、涨跌播报与提醒价、走势图 |
 | `CompanionGoldForecast.cs` | 金价推测模型：历史日线解析与缓存、波动率区间、均线趋势、推测记录与对答案 |
-| `CompanionGoldForecastWindow.cs` | 金价推测：下载历史日线、聊天回答、设置页推测表 |
+| `CompanionGoldForecastWindow.cs` | 金价推测：下载历史日线、聊天回答、设置页摘要 |
+| `CompanionGoldFactors.cs` | 判断因素：国际金价、美债、美元、标普、人民币汇率、点差；国内金价拆解、参考价位、概率计算 |
+| `CompanionGoldPanel.cs` | 金价面板：行情 / 推测 / 因素 / 拆解 / 点差 / 计划价位 / 参考价位表格与走势折线图 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
 修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

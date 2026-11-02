@@ -70,12 +70,7 @@ public partial class MainWindow
         companionContextMenu.Items.Add(topmostItem);
         var goldItem = new MenuItem { Header = "招行金价" };
         goldItem.Icon = Icon("\uE9D2");
-        goldItem.Click += (_, _) =>
-        {
-            companionContextMenu.IsOpen = false;
-            if (preferences.GoldWatch && goldQuote == null) _ = FetchGold(false);
-            Say(GoldMenuText(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : goldQuote != null ? "余额-数金皱眉" : null);
-        };
+        goldItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowGoldPanel); };
         companionContextMenu.Items.Add(goldItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };
         hide.Icon = Icon("\uE8A7");

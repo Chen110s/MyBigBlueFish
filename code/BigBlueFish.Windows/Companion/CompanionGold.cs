@@ -118,6 +118,7 @@ public partial class MainWindow
         {
             string json = await goldWeb.GetStringAsync(CompanionGoldFeed.Url + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
             var quotes = CompanionGoldFeed.Parse(json, out var snapshot);
+            if (quotes.Count > 0) goldAllQuotes = quotes;
             var quote = quotes.FirstOrDefault(q => q.Code == preferences.GoldVariety);
             if (quote == null) { goldStatus = $"{DateTime.Now:HH:mm:ss} 行情里暂时没有 {GoldName} 的报价。"; return; }
             goldFailures = 0;
@@ -139,7 +140,7 @@ public partial class MainWindow
         if (goldDay != local.Date) { goldDay = local.Date; goldToday.Clear(); }
         bool changed = goldQuote == null || goldQuote.Price != quote.Price || goldQuote.Code != quote.Code;
         goldQuote = quote;
-        if (changed) goldForecastView?.Invoke(); // the forecast's middle follows the live price
+        if (changed) NotifyGoldViews(); // the forecast's middle and the panel follow the live price
         if (!changed && !double.IsNaN(goldLastRecorded)) return;
         if (quote.Price != goldLastRecorded) RecordGold(quote, local);
         if (!announce) return;
@@ -288,7 +289,7 @@ public partial class MainWindow
             LoadGoldToday();
             nextGoldFetch = DateTime.UtcNow;
             nextGoldHistoryTry = DateTime.MinValue;
-            goldForecastView?.Invoke();
+            NotifyGoldViews();
             if (preferences.GoldWatch) _ = RefreshGoldHistory(false);
         }));
         first.Children.Add(Caption("刷新", 40));
@@ -306,21 +307,28 @@ public partial class MainWindow
         {
             var box = new TextBox { Width = 90, Text = value > 0 ? value.ToString("0.##", CultureInfo.InvariantCulture) : "", Margin = new Thickness(0, 0, 12, 0),
                 VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(4, 2, 4, 2) };
+            string shown = box.Text;
             box.LostFocus += (_, _) =>
             {
+                // Only an edited box writes (the gold panel edits the same prices), and only a new price re-arms the alerts.
+                if (box.Text.Trim() == shown) return;
                 double parsed = double.TryParse(box.Text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0 && v < 1_000_000 ? v : 0;
-                box.Text = parsed > 0 ? parsed.ToString("0.##", CultureInfo.InvariantCulture) : "";
+                box.Text = shown = parsed > 0 ? parsed.ToString("0.##", CultureInfo.InvariantCulture) : "";
+                if (parsed == value) return;
+                value = parsed;
                 change(parsed);
                 goldHighArmed = goldLowArmed = true;
                 SaveCompanion();
+                goldPanelView?.Invoke();
             };
             return box;
         }
-        third.Children.Add(Caption("高于", 40));
+        third.Children.Add(Caption("计划卖出价（高于时提醒）", 170));
         third.Children.Add(Level(preferences.GoldAlertHigh, v => preferences.GoldAlertHigh = v));
-        third.Children.Add(Caption("低于", 40));
+        third.Children.Add(Caption("计划买入价（低于时提醒）", 170));
         third.Children.Add(Level(preferences.GoldAlertLow, v => preferences.GoldAlertLow = v));
-        third.Children.Add(Caption("时提醒（留空 = 不提醒）", 180));
+        page.Children.Add(new TextBlock { Text = "留空 = 不提醒。金价面板里也能改，并能看到离现价多远、按波动粗算的触及可能性。", FontSize = 11,
+            Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
 
         var summary = new TextBlock { Text = GoldSummary(), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 2) };
         page.Children.Add(summary);
@@ -348,7 +356,7 @@ public partial class MainWindow
             catch { }
         }));
         AddGoldForecastSettings(page);
-        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」或聊天时问「金价多少」也能查看；问「金价预测」「明天金价会涨吗」「黄金下个月走势」鱼鱼会给出推测。");
+        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」打开金价面板（行情、走势图、推测、判断因素、点差回本、计划价位都在表格里）；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
     }
 
     // Today's price line (records since midnight), drawn small under the summary.
