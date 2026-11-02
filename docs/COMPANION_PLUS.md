@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.7`（构建时传入 `-p:InformationalVersion=1.0.5-companion.7`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.8`（构建时传入 `-p:InformationalVersion=1.0.5-companion.8`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -86,7 +86,16 @@
 - 形象包的动画默认按整段播放（不使用原版动画里的分段），游戏模仿时的枪口火光只在原版形象下显示；`skin.json` 写 `"SameTiming": true`（每个动作与原版逐帧对应，例如调色版）时，分段、走动和水枪特效与原版完全一致。
 - 附带四套原版调色形象包：樱粉鱼鱼、薄荷鱼鱼、和风绯红鱼鱼、暗夜鱼鱼（只改变头发、眼睛、鱼尾等蓝色部分，106 个动作齐全）。
 
-## 八、三角洲里模仿主人
+## 八、招商银行金价
+
+- 数据来自招行一网通「黄金市场行情」（https://m.cmbchina.com/goldrate.html，即招行展示的上海黄金交易所行情），可选 Au99.99（默认）、Au(T+D)、Au100g、Au99.95、Ag(T+D)、Pt99.95。
+- 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新（30 秒～5 分钟，默认 1 分钟），休市时每 10 分钟看一次。
+- 价格每次变化都追加到 `data\gold-records.csv`（记录时间、行情时间、品种、最新价、涨跌、涨跌幅、开盘、昨收、最高、最低；超过 5 MB 自动换新文件）。
+- 比上次播报涨跌超过设定值（默认 5 元/克）时，鱼鱼播报并配动作（涨：金袋叮当，跌：数金皱眉）；玩游戏、专注时不打扰。
+- 可设「高于 / 低于」提醒价，越过时重要提醒（隐藏时走系统通知），回落后重新生效。
+- 右键「招行金价」、聊天问「金价多少」直接给出最新价、今日涨跌、最高最低；设置页显示今日走势小图和最近的变化，可打开记录文件。
+
+## 九、三角洲里模仿主人
 
 开启「游戏陪玩」且前台是《三角洲行动》时，鱼鱼会同步模仿你的操作（设置 → 互动与关怀 →「三角洲行动 · 烽火地带」里可关闭）：
 
@@ -98,17 +107,17 @@
 - 只读取按键状态和屏幕画面，不向游戏发送任何操作、也不读取游戏内存。
 - 现有动画中没有开枪、包扎等动作，这些道具和特效是在鱼鱼身上实时绘制的。
 
-## 九、构建
+## 十、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.7
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.8
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 十、改动的文件
+## 十一、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -128,6 +137,7 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionOpacity.cs` | 透明度与悬停恢复 |
 | `CompanionMimic.cs` | 三角洲里模仿开枪、瞄准、受伤、缠绷带、打药、吃药 |
 | `CompanionSkins.cs` | 形象包：扫描、动作替换、缺失动作处理、设置与说明文件 |
+| `CompanionGold.cs` | 招商银行金价：获取、记录变化、涨跌播报与提醒价、走势图 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
 修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

@@ -183,6 +183,7 @@ public partial class MainWindow
                 if (!FocusActive) StartFocus();
                 return;
             }
+            if (TryGoldChat(message)) return;
             if (TryDeltaForceChat(message)) return;
             if (!preferences.ModelEnabled || !brain.ModelAvailable)
             {

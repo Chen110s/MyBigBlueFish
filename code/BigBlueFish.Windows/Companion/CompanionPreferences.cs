@@ -74,6 +74,13 @@ internal sealed class CompanionPreferences
     public int InjectKey { get; set; }
     public int PillKey { get; set; }
     public string Skin { get; set; } = "";
+    public bool GoldWatch { get; set; } = true;
+    public string GoldVariety { get; set; } = "AU9999";
+    public int GoldIntervalSeconds { get; set; } = 60;
+    public bool GoldAnnounce { get; set; } = true;
+    public double GoldStep { get; set; } = 5;
+    public double GoldAlertHigh { get; set; }
+    public double GoldAlertLow { get; set; }
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -139,6 +146,11 @@ internal sealed class CompanionPreferences
                     s.BreakMinutes = Math.Clamp(s.BreakMinutes, 1, 60);
                     s.ExtraGames ??= "";
                     s.Skin ??= "";
+                    s.GoldVariety = string.IsNullOrWhiteSpace(s.GoldVariety) ? "AU9999" : s.GoldVariety;
+                    s.GoldIntervalSeconds = Math.Clamp(s.GoldIntervalSeconds, 15, 3600);
+                    s.GoldStep = double.IsFinite(s.GoldStep) ? Math.Clamp(s.GoldStep, .5, 1000) : 5;
+                    s.GoldAlertHigh = double.IsFinite(s.GoldAlertHigh) && s.GoldAlertHigh > 0 ? s.GoldAlertHigh : 0;
+                    s.GoldAlertLow = double.IsFinite(s.GoldAlertLow) && s.GoldAlertLow > 0 ? s.GoldAlertLow : 0;
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

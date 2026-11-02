@@ -68,6 +68,7 @@ public partial class MainWindow
         PreviewMouseDown += RaiseOnTouch;
         InitializeOpacity();
         InitializeGameWatch();
+        InitializeGold();
         careTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         careTimer.Tick += CareTick;
         careTimer.Start();
@@ -140,6 +141,7 @@ public partial class MainWindow
         double idle = CompanionNative.IdleSeconds;
         UpdateGame(now);
         ApplyTopmost();
+        UpdateGold(now);
         CheckReminders(now);
         UpdateFocus(now);
         UpdatePresence(now, local, idle, dt);

@@ -109,5 +109,8 @@ public partial class MainWindow
 
         // ---- Delta Force
         AddDeltaForceSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));
+
+        // ---- CMB gold price
+        AddGoldSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));
     }
 }

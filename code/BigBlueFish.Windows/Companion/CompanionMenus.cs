@@ -68,6 +68,15 @@ public partial class MainWindow
         topmostItem.Icon = Icon(TopmostGlyph());
         topmostItem.Click += (_, _) => { companionContextMenu.IsOpen = false; SetAlwaysOnTop(!preferences.AlwaysOnTop, true); };
         companionContextMenu.Items.Add(topmostItem);
+        var goldItem = new MenuItem { Header = "招行金价" };
+        goldItem.Icon = Icon("\uE9D2");
+        goldItem.Click += (_, _) =>
+        {
+            companionContextMenu.IsOpen = false;
+            if (preferences.GoldWatch && goldQuote == null) _ = FetchGold(false);
+            Say(GoldSummary(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : goldQuote != null ? "余额-数金皱眉" : null);
+        };
+        companionContextMenu.Items.Add(goldItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };
         hide.Icon = Icon("\uE8A7");
         hide.Click += (_, _) => { companionContextMenu.IsOpen = false; HideCompanion(); };
@@ -77,6 +86,8 @@ public partial class MainWindow
         {
             crawlItem.Header = CrawlMenuHeader;
             topmostItem.Header = TopmostHeader();
+            goldItem.Header = goldQuote is { } gold ? $"招行金价 {gold.Price:0.00}（{gold.UpDown:+0.00;-0.00}）" : "招行金价";
+            goldItem.IsEnabled = !PuppetActive;
             topmostItem.Icon = Icon(TopmostGlyph());
             crawlItem.IsEnabled = !PuppetActive;
             focusItem.Header = FocusActive ? $"结束专注（还剩 {FocusMinutesLeft} 分钟）" : $"专注 {preferences.FocusMinutes} 分钟";
