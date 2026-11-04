@@ -153,6 +153,44 @@ public partial class MainWindow
         return skin != null || string.IsNullOrWhiteSpace(folder);
     }
 
+    // ---------------------------------------------------------------- rotation: a different look every N minutes
+    private DateTime nextSkinRotation = DateTime.MinValue; // MinValue = not scheduled yet
+
+    private void ScheduleSkinRotation() =>
+        nextSkinRotation = preferences.SkinRotate ? DateTime.UtcNow.AddMinutes(Math.Clamp(preferences.SkinRotateMinutes, 1, 1440)) : DateTime.MaxValue;
+
+    // The looks to rotate through: every pack that loads, plus the original fish if wanted.
+    private List<(string Folder, string Name)> RotationLooks()
+    {
+        var looks = new List<(string, string)>();
+        if (originalAnimationPolicy == null) return looks;
+        if (preferences.SkinRotateWithOriginal) looks.Add(("", "蓝色大肥鱼"));
+        foreach (var folder in CompanionSkins.Folders())
+            if (CompanionSkins.Load(folder, originalAnimationPolicy.Rules) is { } skin) looks.Add((Path.GetFileName(folder), skin.Name));
+        return looks;
+    }
+
+    // Random, never the same look twice in a row; waits while she is busy (dragged, mimicking a game, on the edge…).
+    private bool RotateSkin(bool force = false)
+    {
+        if (!force && (!companionReady || companionClosed || exitAnimation || PuppetActive || dragging || mimicActive || Crawling)) return false;
+        var looks = RotationLooks().Where(l => !string.Equals(l.Folder, preferences.Skin, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (looks.Count == 0) return false;
+        var pick = looks[companionRandom.Next(looks.Count)];
+        if (!ApplySkin(pick.Folder, true)) return false;
+        SaveCompanion();
+        return true;
+    }
+
+    // CareTick, every second.
+    private void UpdateSkinRotation(DateTime now)
+    {
+        if (nextSkinRotation == DateTime.MinValue) { ScheduleSkinRotation(); return; }
+        if (!preferences.SkinRotate || now < nextSkinRotation) return;
+        if (RotateSkin()) ScheduleSkinRotation();
+        else nextSkinRotation = now.AddSeconds(30);
+    }
+
     // A clip of the pack failed to play: go back to the original look rather than stop animating.
     private bool RecoverFromSkinFailure()
     {
@@ -231,7 +269,41 @@ public partial class MainWindow
         open.Margin = new Thickness(0, 0, 8, 0);
         buttons.Children.Add(open);
         buttons.Children.Add(BigBlueFish.Deployment.ModernUI.Button("重新扫描", Refresh));
+        var next = BigBlueFish.Deployment.ModernUI.Button("换一个", () =>
+        {
+            if (RotateSkin(true)) { ScheduleSkinRotation(); Refresh(); }
+            else status.Text = "没有别的形象可换：先放入形象包，或在轮换里勾上原版。";
+        });
+        next.Margin = new Thickness(8, 0, 0, 0);
+        buttons.Children.Add(next);
         page.Children.Add(buttons);
+
+        // Rotation
+        var rotation = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 2) };
+        var rotate = new CheckBox { Content = "自动轮换形象，每", IsChecked = preferences.SkinRotate, VerticalAlignment = VerticalAlignment.Center };
+        var minutes = new ComboBox { MinWidth = 90, Margin = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
+        int[] choices = { 5, 10, 30, 60, 120, 240 };
+        foreach (int m in choices) minutes.Items.Add(m < 60 ? $"{m} 分钟" : $"{m / 60} 小时");
+        int at = Array.IndexOf(choices, preferences.SkinRotateMinutes);
+        minutes.SelectedIndex = at >= 0 ? at : 2;
+        var withOriginal = new CheckBox { Content = "原版大肥鱼也参与轮换", IsChecked = preferences.SkinRotateWithOriginal, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0, 0, 0) };
+        rotate.Click += (_, _) => { preferences.SkinRotate = rotate.IsChecked == true; ScheduleSkinRotation(); SaveCompanion(); };
+        minutes.SelectionChanged += (_, _) =>
+        {
+            if (minutes.SelectedIndex < 0) return;
+            preferences.SkinRotateMinutes = choices[minutes.SelectedIndex];
+            ScheduleSkinRotation();
+            SaveCompanion();
+        };
+        withOriginal.Click += (_, _) => { preferences.SkinRotateWithOriginal = withOriginal.IsChecked == true; SaveCompanion(); };
+        rotation.Children.Add(rotate);
+        rotation.Children.Add(minutes);
+        rotation.Children.Add(new TextBlock { Text = "换一次", VerticalAlignment = VerticalAlignment.Center });
+        rotation.Children.Add(withOriginal);
+        page.Children.Add(rotation);
+        page.Children.Add(new TextBlock { Text = "轮换时随机换一个形象，不会连续两次一样；被拖动、沿屏幕爬行或在三角洲里模仿时，会等一会儿再换。「换一个」可以马上换。",
+            FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
         page.Children.Add(new TextBlock { Text = "形象包是 skins 文件夹里的一个子文件夹，放入以动作命名的透明背景动画（如「待机呼吸休闲.webm」），缺少的动作会用它的待机动作代替。详见文件夹里的「形象包说明.txt」和「动作清单.txt」。",
             FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         Refresh();

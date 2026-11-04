@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.11`（构建时传入 `-p:InformationalVersion=1.0.5-companion.11`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.12`（构建时传入 `-p:InformationalVersion=1.0.5-companion.12`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -85,6 +85,8 @@
 - 某个动作播放失败时自动换回原版并提示，不会让鱼鱼卡住。
 - 形象包的动画默认按整段播放（不使用原版动画里的分段），游戏模仿时的枪口火光只在原版形象下显示；`skin.json` 写 `"SameTiming": true`（每个动作与原版逐帧对应，例如调色版）时，分段、走动和水枪特效与原版完全一致。
 - 附带四套原版调色形象包：樱粉鱼鱼、薄荷鱼鱼、和风绯红鱼鱼、暗夜鱼鱼（只改变头发、眼睛、鱼尾等蓝色部分，106 个动作齐全）。
+- 附带四套深海矢量形象包：鲸鱼娘下潜版、圆滚滚大肥鱼、猫娘版、人鱼版——矢量图来自 [skymecode/dsh-deep-diving](https://github.com/skymecode/dsh-deep-diving)（`src/client/skins.ts`，Apache-2.0），原本是状态栏里的小图标；这里放大到 640×360，加上待机摇摆、哼歌、小憩、跳跃、挥手、害羞、生气、咯咯笑、屈膝礼、被拖动、吐泡泡、思考、转圈、被吓一跳、摇摆舞、庆祝、下蹲、放烟花、金币、皱眉等 22 个动作和特效，渲染成透明 VP9 WebM；其余动作用它的待机动作代替。没有使用该仓库里另行许可（禁止商用）的鲸鱼娘位图素材。
+- 形象轮换：「自动轮换形象，每 N 分钟换一次」（5 分钟～4 小时，默认关闭），随机换、不连续重复，可选原版是否参与；被拖动、沿屏幕爬行或在三角洲里模仿时会稍后再换。「换一个」按钮可马上换。
 
 ## 八、招商银行金价
 
@@ -132,7 +134,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.11
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.12
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。

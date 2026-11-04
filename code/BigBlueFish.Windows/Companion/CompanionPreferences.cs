@@ -74,6 +74,9 @@ internal sealed class CompanionPreferences
     public int InjectKey { get; set; }
     public int PillKey { get; set; }
     public string Skin { get; set; } = "";
+    public bool SkinRotate { get; set; }
+    public int SkinRotateMinutes { get; set; } = 30;
+    public bool SkinRotateWithOriginal { get; set; } = true;
     public bool GoldWatch { get; set; } = true;
     public string GoldVariety { get; set; } = "AU9999";
     public int GoldIntervalSeconds { get; set; } = 60;
@@ -147,6 +150,7 @@ internal sealed class CompanionPreferences
                     s.BreakMinutes = Math.Clamp(s.BreakMinutes, 1, 60);
                     s.ExtraGames ??= "";
                     s.Skin ??= "";
+                    s.SkinRotateMinutes = Math.Clamp(s.SkinRotateMinutes, 1, 1440);
                     s.GoldVariety = string.IsNullOrWhiteSpace(s.GoldVariety) ? "AU9999" : s.GoldVariety;
                     s.GoldIntervalSeconds = Math.Clamp(s.GoldIntervalSeconds, 15, 3600);
                     s.GoldStep = double.IsFinite(s.GoldStep) ? Math.Clamp(s.GoldStep, .5, 1000) : 5;

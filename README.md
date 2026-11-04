@@ -34,7 +34,7 @@
 - **招行金价**：实时获取招商银行黄金行情（Au99.99 等），每次变化记到本机 CSV，涨跌较大或到达你设的价位时鱼鱼提醒，右键或聊天随时查看。
 - **金价推测**：根据同一品种 2010 年以来的历史日线和波动率模型，推算下个交易日、一周、一个月、一年后的价格区间（按历史波动，约 68% / 95% 的情况会落在其中），附均线趋势和历史上涨比例；每天的推测自动记录、到期对答案。聊天问「明天金价会涨吗」「黄金下个月走势」即可。统计推算，不构成投资建议。
 - **金价面板**：右键「招行金价」时鱼鱼用气泡报现价和今天收盘的预计区间；右键「金价面板…」按「金价变化 → 金价预测 → 买卖参考 → 判断依据」用表格展示实时行情、价格走势折线图、今天 / 天 / 周 / 月 / 年推测、判断因素（国际金价、美联储预期、美元、避险、央行购金、人民币汇率、产品点差）、国内金价拆解、点差回本、你的计划买入 / 卖出价和历史参考价位。只提供数据和统计，不给买卖建议。
-- **形象包切换**：在 `skins` 文件夹里放入自己的动画素材（WebM / GIF / APNG / MOV / PNG，透明背景），设置里一键切换形象，缺的动作自动用待机动作补上。
+- **形象包切换**：在 `skins` 文件夹里放入自己的动画素材（WebM / GIF / APNG / MOV / PNG，透明背景），设置里一键切换形象，缺的动作自动用待机动作补上；附带 4 套原版调色和 4 套深海矢量形象（鲸鱼娘下潜版、圆滚滚大肥鱼、猫娘版、人鱼版），可设置每隔一段时间自动轮换。
 - **透明度**：设置里拖动滑块让鱼鱼变得半透明（气泡保持清晰），鼠标移上去时恢复不透明。
 - **三角洲里模仿你**：你开枪她举水枪开火、你开镜她出现准星、你受伤她红闪一抖、你缠绷带 / 打药 / 吃药她也跟着做（只读取按键和画面，不碰游戏）。
 - **三角洲行动 · 烽火地带**：本机识别画面上的进图、撤离成功、被击倒和阵亡，配上专属动作和吐槽（放烟花、钱袋满溢、袋空如洗、气急败坏……）；记录每天和累计的战绩、连撤 / 连寄、带出的哈夫币，收工时帮你复盘；聊天时懂摸金、跑刀、大红这些黑话，也可以直接告诉她「撤离成功了」「寄了」。
@@ -47,10 +47,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.11
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.12
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.11` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.12` 即为增强版。
 
 应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
 
@@ -248,7 +248,7 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **CMB gold price**: follows China Merchants Bank's gold quotes (Au99.99 and others) in real time, records every change in a local CSV, tells you about big moves or the price levels you set, and answers in the menu or in chat.
 - **Gold price outlook**: from the same contract's daily history since 2010 and a volatility model, she estimates the price range for the next trading day, a week, a month and a year (ranges that held the price about 68 % / 95 % of the time historically), with the moving-average trend and how often the price rose over the same span in the past; each day's estimate is recorded and checked once it comes due. Ask "明天金价会涨吗" (will gold rise tomorrow?) or "黄金下个月走势" (gold next month?). It is a statistical estimate, not investment advice.
 - **Gold panel**: right-click "招行金价" and she tells you the price and today's expected closing range in a bubble; right-click "金价面板…" for a window of tables ordered price moves → outlook → buy / sell references → driving factors — live quotes, a price chart, the day / week / month / year outlook, the driving factors (international gold, Fed expectations via Treasury yields, the dollar, risk sentiment, central-bank buying, the yuan, the product spread), how the domestic price is made up, the spread's break-even, your own planned buy / sell prices and historical reference levels. Data and statistics only; it gives no buy or sell recommendations.
-- **Appearance packs**: put your own transparent animations (WebM / GIF / APNG / MOV / PNG) into a folder under `skins` and switch her look in settings; actions the pack lacks fall back to its idle clip.
+- **Appearance packs**: put your own transparent animations (WebM / GIF / APNG / MOV / PNG) into a folder under `skins` and switch her look in settings; actions the pack lacks fall back to its idle clip. Four recoloured packs and four "deep diving" vector packs (whale girl, round big fish, cat girl, mermaid) are included, and the look can rotate automatically every few minutes.
 - **Transparency**: a slider in settings makes her see-through (the speech bubble stays clear); she turns solid while the mouse is on her.
 - **Mimicking you in Delta Force**: when you fire she fires her water gun, when you aim a crosshair appears, when you are hit she flashes red and flinches, and when you bandage, inject or take a pill she does the same (only key states and the screen are read; the game is never touched).
 - **Delta Force · Operations (烽火地带)**: she reads the screen locally to recognise deployment, extraction, being downed and death, and reacts with matching animations and teasing lines (fireworks, an overflowing money bag, an empty purse, a tantrum…). She keeps today's and all-time records, extraction / death streaks and the in-game currency (哈夫币) carried out, reviews your session when you stop, understands the game's slang in chat, and you can also just tell her "撤离成功了" or "寄了".
@@ -261,10 +261,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.11
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.12
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.11` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.12` when the companion edition is running.
 
 Updating to a newer official version through the in-app update replaces the companion edition's files.
 

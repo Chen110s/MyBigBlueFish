@@ -143,6 +143,7 @@ public partial class MainWindow
         UpdateGame(now);
         ApplyTopmost();
         UpdateGold(now);
+        UpdateSkinRotation(now);
         CheckReminders(now);
         UpdateFocus(now);
         UpdatePresence(now, local, idle, dt);
