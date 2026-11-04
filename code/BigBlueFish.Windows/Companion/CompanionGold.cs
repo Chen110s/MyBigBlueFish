@@ -105,8 +105,9 @@ public partial class MainWindow
         UpdateGoldHistory(now);
         if (!preferences.GoldWatch || goldFetching || now < nextGoldFetch) return;
         bool open = CompanionGoldFeed.MarketOpen(DateTime.Now);
-        // Outside trading hours the quote does not move: look far less often.
-        nextGoldFetch = now.AddSeconds(goldFailures >= 3 ? 300 : open ? preferences.GoldIntervalSeconds : 600);
+        // The chosen rate (每秒 … 每天); outside trading hours the quote does not move, so at most every 10 minutes.
+        int interval = open ? preferences.GoldIntervalSeconds : Math.Max(preferences.GoldIntervalSeconds, 600);
+        nextGoldFetch = now.AddSeconds(goldFailures >= 3 ? Math.Max(300, Math.Min(interval, 3600)) : interval);
         _ = FetchGold();
     }
 
@@ -139,6 +140,7 @@ public partial class MainWindow
         var local = DateTime.Now;
         if (goldDay != local.Date) { goldDay = local.Date; goldToday.Clear(); }
         bool changed = goldQuote == null || goldQuote.Price != quote.Price || goldQuote.Code != quote.Code;
+        double previous = goldQuote != null && goldQuote.Code == quote.Code ? goldQuote.Price : double.NaN;
         goldQuote = quote;
         if (changed) NotifyGoldViews(); // the forecast's middle and the panel follow the live price
         if (!changed && !double.IsNaN(goldLastRecorded)) return;
@@ -151,8 +153,8 @@ public partial class MainWindow
             if (goldHighArmed && quote.Price >= preferences.GoldAlertHigh)
             {
                 goldHighArmed = false;
-                Say($"{bond.Address}！招行{quote.Variety}涨到 {quote.Price:0.00} {quote.Unit} 啦，到你设的 {preferences.GoldAlertHigh:0.##} 了！",
-                    "余额-钱袋满溢", true);
+                SayGold($"{bond.Address}！招行{quote.Variety}涨到 {quote.Price:0.00} {quote.Unit} 啦，到你设的 {preferences.GoldAlertHigh:0.##} 了！",
+                    true, "余额-钱袋满溢", true);
                 goldAnnounced = quote.Price;
                 return;
             }
@@ -163,8 +165,8 @@ public partial class MainWindow
             if (goldLowArmed && quote.Price <= preferences.GoldAlertLow)
             {
                 goldLowArmed = false;
-                Say($"{bond.Address}！招行{quote.Variety}跌到 {quote.Price:0.00} {quote.Unit} 了，低于你设的 {preferences.GoldAlertLow:0.##}！",
-                    "余额-数金皱眉", true);
+                SayGold($"{bond.Address}！招行{quote.Variety}跌到 {quote.Price:0.00} {quote.Unit} 了，低于你设的 {preferences.GoldAlertLow:0.##}！",
+                    false, "余额-数金皱眉", true);
                 goldAnnounced = quote.Price;
                 return;
             }
@@ -172,13 +174,54 @@ public partial class MainWindow
         }
 
         // Big moves since she last mentioned the price.
-        if (double.IsNaN(goldAnnounced)) { goldAnnounced = quote.Price; return; }
+        if (double.IsNaN(goldAnnounced)) goldAnnounced = quote.Price;
         double move = quote.Price - goldAnnounced;
-        if (!preferences.GoldAnnounce || Math.Abs(move) < preferences.GoldStep || !CanChatter || GameActive) return;
-        goldAnnounced = quote.Price;
-        string direction = move > 0 ? "涨" : "跌";
-        Say($"招行金价{direction}了 {Math.Abs(move):0.##}！{quote.Variety} 现在 {quote.Price:0.00} {quote.Unit}，今天 {quote.UpDown:+0.00;-0.00}（{quote.Percent:+0.00;-0.00}%）",
-            move > 0 ? "余额-金袋叮当" : "余额-数金皱眉");
+        if (preferences.GoldAnnounce && Math.Abs(move) >= preferences.GoldStep && CanChatter && !GameActive)
+        {
+            goldAnnounced = quote.Price;
+            string direction = move > 0 ? "涨" : "跌";
+            SayGold($"招行金价{direction}了 {Math.Abs(move):0.##}！{quote.Variety} 现在 {quote.Price:0.00} {quote.Unit}，今天 {quote.UpDown:+0.00;-0.00}（{quote.Percent:+0.00;-0.00}%）",
+                move > 0, move > 0 ? "余额-金袋叮当" : "余额-数金皱眉");
+            return;
+        }
+
+        // 金价变动提醒: every change of the price, in red when it rose and in green when it fell.
+        if (preferences.GoldChangeAlert && !double.IsNaN(previous) && quote.Price != previous && GoldAlertAllowed)
+        {
+            double step = quote.Price - previous;
+            SayGold($"招行 {quote.Variety} {quote.Price:0.00} {quote.Unit} {(step > 0 ? "↑" : "↓")}{Math.Abs(step):0.00}（{local:HH:mm:ss}，今天 {quote.UpDown:+0.00;-0.00}）",
+                step > 0, null);
+        }
+    }
+
+    // ---------------------------------------------------------------- red / green gold bubbles
+    private Brush? goldBubbleDefault;
+    private string? goldTintText;
+    private bool goldTintImportant;
+
+    // Not while she is busy with the owner or hidden, and never over another line that is still in her bubble
+    // (a reply, a reminder, a price alert you asked for); an earlier change alert may be replaced by the newer price.
+    private bool GoldAlertAllowed => companionReady && IsVisible && !hiddenByUser && !fullscreenHidden && !PuppetActive && !dragging
+        && !exitAnimation && !FocusActive && !GameActive && chatWindow == null && loadingIndicator?.Visibility != Visibility.Visible
+        && (bubble.Visibility != Visibility.Visible || goldTintText != null && speech.FullText == goldTintText && !goldTintImportant);
+
+    // A gold line in her bubble: red text when the price rose, green when it fell. The colour goes back to normal as soon
+    // as the bubble shows anything else.
+    private void SayGold(string text, bool up, string? animation, bool important = false)
+    {
+        if (goldBubbleDefault == null)
+        {
+            goldBubbleDefault = bubbleText.Foreground;
+            System.ComponentModel.DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock)).AddValueChanged(bubbleText, (_, _) =>
+            {
+                if (goldTintText != null && speech.FullText != goldTintText) { goldTintText = null; bubbleText.Foreground = goldBubbleDefault; }
+            });
+        }
+        Say(text, animation, important);
+        if (speech.FullText != text) return; // not shown (hidden, puppet …)
+        goldTintText = text;
+        goldTintImportant = important;
+        bubbleText.Foreground = up ? GoldUp : GoldDown;
     }
 
     private void RecordGold(GoldQuote quote, DateTime local)
@@ -293,9 +336,9 @@ public partial class MainWindow
             NotifyGoldViews();
             if (preferences.GoldWatch) _ = RefreshGoldHistory(false);
         }));
-        first.Children.Add(Caption("刷新", 40));
-        first.Children.Add(Choice(new List<(int, string)> { (30, "每 30 秒"), (60, "每 1 分钟"), (120, "每 2 分钟"), (300, "每 5 分钟") },
-            preferences.GoldIntervalSeconds, s => preferences.GoldIntervalSeconds = s));
+        first.Children.Add(Caption("更新", 40));
+        first.Children.Add(Choice(new List<(int, string)> { (1, "每秒"), (60, "每分钟"), (600, "每十分钟"), (3600, "每小时"), (86400, "每天") },
+            preferences.GoldIntervalSeconds, s => { preferences.GoldIntervalSeconds = s; nextGoldFetch = DateTime.UtcNow; }));
         var second = Row();
         second.Children.Add(new CheckBox { Content = "涨跌超过", IsChecked = preferences.GoldAnnounce, VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 8, 0) });
@@ -303,6 +346,8 @@ public partial class MainWindow
         second.Children.Add(Choice(new List<(double, string)> { (1, "1 元"), (2, "2 元"), (3, "3 元"), (5, "5 元"), (8, "8 元"), (10, "10 元"), (20, "20 元") },
             preferences.GoldStep, s => preferences.GoldStep = s));
         second.Children.Add(Caption("时鱼鱼播报（玩游戏、专注时不打扰）", 260));
+        toggle("金价变动提醒：每次价格变化，鱼鱼都用气泡报当时的金价——涨了是红字，跌了是绿字（玩游戏、专注、聊天时不打扰）",
+            preferences.GoldChangeAlert, v => preferences.GoldChangeAlert = v);
         var third = Row();
         TextBox Level(double value, Action<double> change)
         {
@@ -357,7 +402,7 @@ public partial class MainWindow
             catch { }
         }));
         AddGoldForecastSettings(page);
-        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」，她用气泡告诉你现价和今天的预计区间；「金价面板…」用表格看金价变化、预测、买卖参考和判断依据；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
+        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按选的频率更新；休市时价格不动，最多每 10 分钟看一次（选每小时、每天时照选的来）。右键鱼鱼「招行金价」，她用气泡告诉你现价和今天的预计区间；「金价面板…」用表格看金价变化、预测、买卖参考和判断依据；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
     }
 
     // Today's price line (records since midnight), drawn small under the summary.

@@ -31,7 +31,8 @@
 - **定时提醒**：右键「提醒事项」，或在聊天里说「30分钟后提醒我开会」「明天早上8:30叫我起床」，重启后仍然保留。
 - **游戏陪玩**：识别常见游戏后，全屏也不躲起来、鼠标点击会穿过她和她的气泡（切到游戏立即生效，不会挡操作）、不占用显卡，偶尔加油、每小时提醒休息；可选识别「胜利 / 失败」画面并做出反应。
 - **置顶 / 不置顶**：右键或设置里切换；不置顶时她待在其他窗口后面，点她或托盘图标叫到前面，有提醒时暂时跳到最前。
-- **招行金价**：实时获取招商银行黄金行情（Au99.99 等），每次变化记到本机 CSV，涨跌较大或到达你设的价位时鱼鱼提醒，右键或聊天随时查看。
+- **招行金价**：实时获取招商银行黄金行情（Au99.99 等），更新频率可在设置里选每秒 / 每分钟 / 每十分钟 / 每小时 / 每天；每次变化记到本机 CSV，涨跌较大或到达你设的价位时鱼鱼提醒，右键或聊天随时查看。
+- **金价变动提醒**：设置里可开关；价格每变一次，鱼鱼用气泡报当时的金价——涨了是红字，跌了是绿字；玩游戏、专注、聊天时不打扰。
 - **金价推测**：根据同一品种 2010 年以来的历史日线和波动率模型，推算下个交易日、一周、一个月、一年后的价格区间（按历史波动，约 68% / 95% 的情况会落在其中），附均线趋势和历史上涨比例；每天的推测自动记录、到期对答案。聊天问「明天金价会涨吗」「黄金下个月走势」即可。统计推算，不构成投资建议。
 - **金价面板**：右键「招行金价」时鱼鱼用气泡报现价和今天收盘的预计区间；右键「金价面板…」按「金价变化 → 金价预测 → 买卖参考 → 判断依据」用表格展示实时行情、价格走势折线图、今天 / 天 / 周 / 月 / 年推测、判断因素（国际金价、美联储预期、美元、避险、央行购金、人民币汇率、产品点差）、国内金价拆解、点差回本、你的计划买入 / 卖出价和历史参考价位。只提供数据和统计，不给买卖建议。
 - **形象包切换**：在 `skins` 文件夹里放入自己的动画素材（WebM / GIF / APNG / MOV / PNG，透明背景），设置里一键切换形象，缺的动作自动用待机动作补上；附带 4 套原版调色，以及取自同人游戏《鲸鱼娘养成计划》的 4 个成长期（10 / 15 / 20 / 25 岁）、Q版女仆和 8 套换装形象（CC BY-NC-SA 4.0，仅限非商业使用）；可设置每隔一段时间自动轮换。
@@ -47,10 +48,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.12
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.13
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.12` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.13` 即为增强版。
 
 应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
 
@@ -245,7 +246,8 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Timed reminders**: right-click "提醒事项" (Reminders) or say in the chat "30分钟后提醒我开会" (remind me about the meeting in 30 minutes) or "明天早上8:30叫我起床" (wake me up at 8:30 tomorrow); reminders survive restarts.
 - **Game companion**: when a common game is in front she stays visible in fullscreen, lets every mouse click pass through her and her speech bubble (from the moment you switch to the game), keeps the GPU free, cheers now and then and suggests a break every hour; optionally she can recognise victory / defeat screens and react.
 - **Always on top or not**: switch it from the right-click menu or in settings. When she is not on top she stays behind other windows; clicking her or the tray icon brings her forward, and reminders lift her to the front for a moment.
-- **CMB gold price**: follows China Merchants Bank's gold quotes (Au99.99 and others) in real time, records every change in a local CSV, tells you about big moves or the price levels you set, and answers in the menu or in chat.
+- **CMB gold price**: follows China Merchants Bank's gold quotes (Au99.99 and others), updating every second, minute, ten minutes, hour or day as you choose in the settings; records every change in a local CSV, tells you about big moves or the price levels you set, and answers in the menu or in chat.
+- **Gold change alerts**: an on/off setting; every time the price changes she shows the current price in her bubble — red text when it rose, green when it fell. Quiet while you game, focus or chat.
 - **Gold price outlook**: from the same contract's daily history since 2010 and a volatility model, she estimates the price range for the next trading day, a week, a month and a year (ranges that held the price about 68 % / 95 % of the time historically), with the moving-average trend and how often the price rose over the same span in the past; each day's estimate is recorded and checked once it comes due. Ask "明天金价会涨吗" (will gold rise tomorrow?) or "黄金下个月走势" (gold next month?). It is a statistical estimate, not investment advice.
 - **Gold panel**: right-click "招行金价" and she tells you the price and today's expected closing range in a bubble; right-click "金价面板…" for a window of tables ordered price moves → outlook → buy / sell references → driving factors — live quotes, a price chart, the day / week / month / year outlook, the driving factors (international gold, Fed expectations via Treasury yields, the dollar, risk sentiment, central-bank buying, the yuan, the product spread), how the domestic price is made up, the spread's break-even, your own planned buy / sell prices and historical reference levels. Data and statistics only; it gives no buy or sell recommendations.
 - **Appearance packs**: put your own transparent animations (WebM / GIF / APNG / MOV / PNG) into a folder under `skins` and switch her look in settings; actions the pack lacks fall back to its idle clip. Four recoloured packs are included, plus looks from the fan game "鲸鱼娘养成计划" (Whale Girl raising plan): four growth stages (age 10 / 15 / 20 / 25), a chibi maid and eight outfits (CC BY-NC-SA 4.0, non-commercial use only); the look can rotate automatically every few minutes.
@@ -261,10 +263,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.12
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.13
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.12` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.13` when the companion edition is running.
 
 Updating to a newer official version through the in-app update replaces the companion edition's files.
 

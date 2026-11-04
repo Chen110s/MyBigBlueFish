@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.12`（构建时传入 `-p:InformationalVersion=1.0.5-companion.12`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.13`（构建时传入 `-p:InformationalVersion=1.0.5-companion.13`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -95,10 +95,11 @@
 ## 八、招商银行金价
 
 - 数据来自招行一网通「黄金市场行情」（https://m.cmbchina.com/goldrate.html，即招行展示的上海黄金交易所行情），可选 Au99.99（默认）、Au(T+D)、Au100g、Au99.95、Ag(T+D)、Pt99.95。
-- 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新（30 秒～5 分钟，默认 1 分钟），休市时每 10 分钟看一次。
+- 更新频率在设置里选：每秒 / 每分钟（默认）/ 每十分钟 / 每小时 / 每天。交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）照选的频率更新；休市时价格不动，最多每 10 分钟看一次（选每小时、每天时照选的来）。旧版保存的间隔自动换成最接近的一档。
 - 价格每次变化都追加到 `data\gold-records.csv`（记录时间、行情时间、品种、最新价、涨跌、涨跌幅、开盘、昨收、最高、最低；超过 5 MB 自动换新文件）。
 - 比上次播报涨跌超过设定值（默认 5 元/克）时，鱼鱼播报并配动作（涨：金袋叮当，跌：数金皱眉）；玩游戏、专注时不打扰。
 - 可设「高于 / 低于」提醒价，越过时重要提醒（隐藏时走系统通知），回落后重新生效。
+- **金价变动提醒**（设置里可开关，默认打开）：价格每变一次，鱼鱼用气泡报当时的金价，例如「招行 Au99.99 1023.45 元/克 ↑0.32（14:05:07，今天 +6.80）」——涨了是红字，跌了是绿字。玩游戏、专注、聊天、拖动、隐藏时不打扰，也不盖住气泡里还在显示的其他话（上一条变动提醒会被新价格替换）。涨跌播报和到价提醒的气泡也按涨红跌绿着色。
 - 右键「招行金价」、聊天问「金价多少」直接给出最新价、今日涨跌、最高最低；设置页显示今日走势小图和最近的变化，可打开记录文件。
 - **金价推测（天 / 周 / 月 / 年）**：用上海黄金交易所同一品种的历史日线（东方财富，2010 年起，缓存在 `data\gold-history-*.csv`，每 3 小时增量更新）推算下个交易日、一周、一个月、一年后的价格区间：
   - 波动：近期日波动按指数加权（λ = 0.97）估计，并随周期逐渐回到近 3 年的平均水平（持续系数 0.985）；
@@ -138,7 +139,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.12
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.13
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。

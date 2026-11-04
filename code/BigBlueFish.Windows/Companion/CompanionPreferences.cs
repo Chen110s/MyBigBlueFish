@@ -5,6 +5,22 @@ using System.Text.Json;
 namespace BigBlueFish.Windows;
 internal sealed class CompanionPreferences
 {
+    // 金价刷新频率：每秒 / 每分钟 / 每十分钟 / 每小时 / 每天; older saved values snap to the nearest of these.
+    internal static readonly int[] GoldIntervals = [1, 60, 600, 3600, 86400];
+
+    internal static int GoldInterval(int seconds)
+    {
+        if (seconds <= 0) return 60;
+        int best = 60;
+        double distance = double.MaxValue;
+        foreach (int option in GoldIntervals)
+        {
+            double d = Math.Abs(Math.Log(Math.Max(1, seconds)) - Math.Log(option));
+            if (d < distance) { distance = d; best = option; }
+        }
+        return best;
+    }
+
     public bool ModelEnabled { get; set; } = true;
     public bool GpuEnabled { get; set; } = true;
     public bool PublicInfo { get; set; } = true;
@@ -85,6 +101,7 @@ internal sealed class CompanionPreferences
     public double GoldAlertHigh { get; set; }
     public double GoldAlertLow { get; set; }
     public double GoldSpread { get; set; }
+    public bool GoldChangeAlert { get; set; } = true;
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -152,7 +169,7 @@ internal sealed class CompanionPreferences
                     s.Skin ??= "";
                     s.SkinRotateMinutes = Math.Clamp(s.SkinRotateMinutes, 1, 1440);
                     s.GoldVariety = string.IsNullOrWhiteSpace(s.GoldVariety) ? "AU9999" : s.GoldVariety;
-                    s.GoldIntervalSeconds = Math.Clamp(s.GoldIntervalSeconds, 15, 3600);
+                    s.GoldIntervalSeconds = GoldInterval(s.GoldIntervalSeconds);
                     s.GoldStep = double.IsFinite(s.GoldStep) ? Math.Clamp(s.GoldStep, .5, 1000) : 5;
                     s.GoldAlertHigh = double.IsFinite(s.GoldAlertHigh) && s.GoldAlertHigh > 0 ? s.GoldAlertHigh : 0;
                     s.GoldAlertLow = double.IsFinite(s.GoldAlertLow) && s.GoldAlertLow > 0 ? s.GoldAlertLow : 0;
