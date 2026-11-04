@@ -144,6 +144,20 @@ internal static class CompanionGoldFactors
         return rows;
     }
 
+    // The latest day's move of international gold and the yuan (for the price bubble).
+    internal static string DayMoves(string code, IReadOnlyDictionary<string, List<GoldBar>> series)
+    {
+        var parts = new List<string>();
+        if (International(code) is { } key && series.TryGetValue(key, out var intl) && intl.Count >= 2)
+            parts.Add((key == "XAG" ? "国际银价" : "国际金价") + "当日 " + Signed((intl[^1].Close / intl[^2].Close - 1) * 100, "0.00") + "%");
+        if (series.TryGetValue("CNH", out var cnh) && cnh.Count >= 2)
+        {
+            double percent = (cnh[^1].Close / cnh[^2].Close - 1) * 100;
+            parts.Add(Math.Abs(percent) < .05 ? "人民币汇率基本没动" : percent > 0 ? $"人民币当日贬值 {N(percent, "0.00")}%" : $"人民币当日升值 {N(-percent, "0.00")}%");
+        }
+        return parts.Count == 0 ? "" : string.Join("，", parts) + "。";
+    }
+
     // One line for chat: the 20-day moves of the main factors.
     internal static string Brief(string code, IReadOnlyDictionary<string, List<GoldBar>> series)
     {

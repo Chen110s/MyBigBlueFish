@@ -154,6 +154,45 @@ public partial class MainWindow
 
     private string GoldForecastName => GoldName.Split('（')[0];
 
+    // Right-click 「招行金价」 and "金价多少": the price now and the expected range of the next close (today's while trading).
+    private string GoldTodayText(bool panel = false)
+    {
+        if (goldQuote is not { } q) return GoldSummary();
+        string P(double v) => CompanionGoldForecast.Price(v);
+        var text = new StringBuilder($"招行 {q.Variety} 现在 {q.Price:0.00} {q.Unit}，今天 {q.UpDown:+0.00;-0.00;0.00}（{q.Percent:+0.00;-0.00;0.00}%），"
+            + $"开盘 {q.Open:0.00}、最高 {q.High:0.00}、最低 {q.Low:0.00}");
+        text.Append(CompanionGoldFeed.MarketOpen(DateTime.Now) ? "。" : "（现在休市）。");
+        UpdateGoldForecast();
+        if (goldForecast is { } f && q.Code == preferences.GoldVariety)
+        {
+            var s = CompanionGoldForecast.Session(f, q.Price, DateTime.Now);
+            text.Append($"\n{s.Label}预计：按近期波动，约 68% 的情况在 {P(s.Low68)}～{P(s.High68)}，约 95% 在 {P(s.Low95)}～{P(s.High95)}。");
+        }
+        else text.Append("\n今天的预计还在准备（要先读历史日线），过一会儿再问我～");
+        string moves = CompanionGoldFactors.DayMoves(preferences.GoldVariety, goldFactorBars);
+        if (moves.Length > 0) text.Append('\n').Append(moves);
+        text.Append(panel ? "\n只是统计推算，不构成投资建议。" : "\n只是统计推算，不构成投资建议；表格在右键「金价面板」里。");
+        return text.ToString();
+    }
+
+    private async Task SayGoldNow()
+    {
+        MaybeRefreshGoldFactors();
+        MaybeRefreshGoldHistory();
+        if (!goldOffline && (goldQuote == null || goldBars.Count < CompanionGoldForecast.MinimumDays))
+        {
+            Say("鱼鱼去招行看看金价～", "余额-钱袋如常");
+            if (goldQuote == null)
+            {
+                if (!goldFetching) await FetchGold(preferences.GoldWatch);
+                for (int i = 0; i < 100 && goldFetching; i++) await Task.Delay(100);
+            }
+            if (goldBars.Count < CompanionGoldForecast.MinimumDays && DateTime.UtcNow >= nextGoldHistoryTry) await RefreshGoldHistory(false);
+        }
+        if (companionClosed) return;
+        Say(GoldTodayText(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : goldQuote != null ? "余额-数金皱眉" : null);
+    }
+
     // Chat / bubble text: one horizon, or (days == null) all four.
     private string GoldForecastText(int? days, bool advice = false)
     {
@@ -163,7 +202,12 @@ public partial class MainWindow
         var text = new StringBuilder();
         if (advice) text.Append("买不买鱼鱼可不敢替你拿主意（鱼鱼不是理财顾问），不过可以给你看看统计上的区间：\n");
         string basis = f.LiveBase ? $"现在 {P(f.Base)} {unit}" : $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘 {P(f.Base)} {unit}";
-        if (days is int d && f.Row(d) is { } row)
+        if (days == 0)
+        {
+            var s = CompanionGoldForecast.Session(f, f.Base, DateTime.Now);
+            text.Append($"招行 {GoldForecastName} {basis}。按近期波动推算，{s.Label}约 68% 的情况在 {P(s.Low68)}～{P(s.High68)}，约 95% 在 {P(s.Low95)}～{P(s.High95)}。");
+        }
+        else if (days is int d && f.Row(d) is { } row)
         {
             string span = d == 1 ? "一个交易日" : row.Label;
             text.Append($"招行 {GoldForecastName} {basis}。按近 {Math.Round(f.Years):0} 年的历史波动推算，{row.Label}的收盘约 68% 的情况会落在 {P(row.Low68)}～{P(row.High68)}，")
@@ -174,6 +218,8 @@ public partial class MainWindow
         else
         {
             text.Append($"招行 {GoldForecastName} 推测（{basis}；按历史波动，约 68% 的情况落在这些区间）：");
+            var session = CompanionGoldForecast.Session(f, f.Base, DateTime.Now);
+            text.Append($"\n{session.Label}：{P(session.Low68)}～{P(session.High68)}");
             foreach (var r in f.Rows) text.Append($"\n{r.Label}：{P(r.Low68)}～{P(r.High68)}");
         }
         text.Append('\n').Append(f.Trend);
@@ -194,9 +240,10 @@ public partial class MainWindow
     internal static bool IsGoldForecastAsk(string message) =>
         GoldFutureAsk.IsMatch(message) || GoldMaybeAsk.IsMatch(message) && !GoldNowWord.IsMatch(message);
 
-    // Only the four horizons the model has; anything else (后天, 年底, 今年…) gets all four.
+    // Today's session (0) or the four horizons the model has; anything else (后天, 年底, 今年…) gets all four.
     internal static int? GoldHorizonAsked(string message) =>
         Regex.IsMatch(message, "明天|明日|隔天|下个交易日|一天") ? 1
+        : Regex.IsMatch(message, "今天|今日|收盘") ? 0
         : Regex.IsMatch(message, "周(?!年)|星期|礼拜") ? 5
         : Regex.IsMatch(message, "月") ? 21
         : Regex.IsMatch(message, "明年|一年|年后|全年|[0-9一两二三]+年") ? CompanionGoldForecast.YearDays

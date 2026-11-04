@@ -258,7 +258,8 @@ public partial class MainWindow
         if (GoldOtherMetal(message) is { } other) { ChatReply(message, other, remember: false); return true; }
         if (IsGoldForecastAsk(message) || GoldAdviceAsk.IsMatch(message)) { AnswerGoldForecast(message); return true; }
         if (preferences.GoldWatch && goldQuote == null && !goldFetching) _ = FetchGold(false);
-        ChatReply(message, GoldSummary(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : "余额-数金皱眉", remember: false);
+        MaybeRefreshGoldFactors();
+        ChatReply(message, GoldTodayText(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : "余额-数金皱眉", remember: false);
         return true;
     }
 
@@ -356,7 +357,7 @@ public partial class MainWindow
             catch { }
         }));
         AddGoldForecastSettings(page);
-        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」打开金价面板（行情、走势图、推测、判断因素、点差回本、计划价位都在表格里）；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
+        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按设定间隔刷新，休市时每 10 分钟看一次。右键鱼鱼「招行金价」，她用气泡告诉你现价和今天的预计区间；「金价面板…」用表格看金价变化、预测、买卖参考和判断依据；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
     }
 
     // Today's price line (records since midnight), drawn small under the summary.

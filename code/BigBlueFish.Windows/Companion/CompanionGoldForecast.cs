@@ -190,6 +190,38 @@ internal static class CompanionGoldForecast
 
     internal static string Price(double value) => value.ToString(value >= 2000 ? "0" : "0.0", CultureInfo.InvariantCulture);
 
+    // ------------------------------------------------------------------ today's session
+    // SGE trading day: night 20:00–2:30 (belongs to the next trading day), day 9:00–11:30 and 13:30–15:30 — 11 hours in all.
+    internal const double SessionHours = 11;
+
+    // The next close and how many trading hours are left until it (public holidays are not known here).
+    internal static (string Label, double Hours) NextClose(DateTime now)
+    {
+        double h = now.TimeOfDay.TotalHours;
+        var day = now.DayOfWeek;
+        bool weekday = day is >= DayOfWeek.Monday and <= DayOfWeek.Friday;
+        const double daySession = 4.5;
+        if (h < 2.5 && day is >= DayOfWeek.Tuesday and <= DayOfWeek.Saturday) // last night's session is still running
+            return (day == DayOfWeek.Saturday ? "下周一收盘" : "今天收盘", 2.5 - h + daySession);
+        if (!weekday) return ("下周一收盘", SessionHours);
+        if (h < 9) return ("今天收盘", daySession);
+        if (h < 11.5) return ("今天收盘", 11.5 - h + 2);
+        if (h < 13.5) return ("今天收盘", 2);
+        if (h < 15.5) return ("今天收盘", 15.5 - h);
+        string next = day == DayOfWeek.Friday ? "下周一收盘" : "明天收盘";
+        return h < 20 ? (next, SessionHours) : (next, 24 - h + 2.5 + daySession);
+    }
+
+    // The range for the next close around the price now: today's volatility scaled to the trading hours left, no trend.
+    internal static GoldForecastRow Session(GoldForecast forecast, double price, DateTime now)
+    {
+        var (label, hours) = NextClose(now);
+        if (!(price > 0)) price = forecast.Base;
+        double sigma = forecast.DailyVolatility * Math.Sqrt(Math.Max(hours, .25) / SessionHours);
+        return new GoldForecastRow(label, 0, price, price * Math.Exp(-Z68 * sigma), price * Math.Exp(Z68 * sigma),
+            price * Math.Exp(-Z95 * sigma), price * Math.Exp(Z95 * sigma), double.NaN, sigma);
+    }
+
     internal static string Unit(string code) => code.StartsWith("AG", StringComparison.Ordinal) ? "元/千克" : "元/克";
 
     // ------------------------------------------------------------------ the record of past forecasts

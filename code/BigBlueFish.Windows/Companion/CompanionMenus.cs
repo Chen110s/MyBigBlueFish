@@ -70,8 +70,12 @@ public partial class MainWindow
         companionContextMenu.Items.Add(topmostItem);
         var goldItem = new MenuItem { Header = "招行金价" };
         goldItem.Icon = Icon("\uE9D2");
-        goldItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowGoldPanel); };
+        goldItem.Click += (_, _) => { companionContextMenu.IsOpen = false; _ = SayGoldNow(); };
         companionContextMenu.Items.Add(goldItem);
+        var goldPanelItem = new MenuItem { Header = "金价面板…" };
+        goldPanelItem.Icon = Icon("\uE8A5");
+        goldPanelItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowGoldPanel); };
+        companionContextMenu.Items.Add(goldPanelItem);
         var hide = new MenuItem { Header = "隐藏桌宠" };
         hide.Icon = Icon("\uE8A7");
         hide.Click += (_, _) => { companionContextMenu.IsOpen = false; HideCompanion(); };
@@ -82,7 +86,7 @@ public partial class MainWindow
             crawlItem.Header = CrawlMenuHeader;
             topmostItem.Header = TopmostHeader();
             goldItem.Header = goldQuote is { } gold ? $"招行金价 {gold.Price:0.00}（{gold.UpDown:+0.00;-0.00}）" : "招行金价";
-            goldItem.IsEnabled = !PuppetActive;
+            goldItem.IsEnabled = goldPanelItem.IsEnabled = !PuppetActive;
             topmostItem.Icon = Icon(TopmostGlyph());
             crawlItem.IsEnabled = !PuppetActive;
             focusItem.Header = FocusActive ? $"结束专注（还剩 {FocusMinutesLeft} 分钟）" : $"专注 {preferences.FocusMinutes} 分钟";

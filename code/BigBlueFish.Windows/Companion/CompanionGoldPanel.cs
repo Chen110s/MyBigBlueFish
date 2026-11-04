@@ -180,6 +180,18 @@ public partial class MainWindow
         }
         TextBlock Caption(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center, Foreground = GoldInk };
 
+        // Headline: the price now and the expected range of the next close, as in the bubble.
+        var headline = new TextBlock { FontSize = 15, Foreground = GoldInk, TextWrapping = TextWrapping.Wrap, LineHeight = 24 };
+        body.Children.Add(new Border { Background = GoldHighlight, BorderBrush = GoldGridLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 4), Child = headline });
+        void Group(string title, string? note = null)
+        {
+            body.Children.Add(new TextBlock { Text = title, FontSize = 22, FontWeight = FontWeights.Bold, Foreground = GoldAccent, Margin = new Thickness(0, 26, 0, 0) });
+            if (note != null)
+                body.Children.Add(new TextBlock { Text = note, FontSize = 12, Foreground = GoldMuted, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
+        }
+
+        Group("一、金价变化");
         // 1. live quotes
         var quotes = Section("实时行情（招商银行）");
         var quoteNote = Note();
@@ -201,26 +213,12 @@ public partial class MainWindow
             rangeButtons.Add((key, button));
             ranges.Children.Add(button);
         }
+        Group("二、金价预测");
         // 3. forecast
-        var forecastCard = Section("天 / 周 / 月 / 年推测",
-            "按历史波动推算的价格区间：约 68% / 95% 的情况会落在其中。中间值只算了长期平均涨幅的一半，不代表看涨或看跌；周期越长越不准。");
+        var forecastCard = Section("今天 / 天 / 周 / 月 / 年推测",
+            "按历史波动推算的价格区间：约 68% / 95% 的情况会落在其中。「今天收盘」按今天的波动和剩下的交易时间推算，中间值就是现价；其余周期的中间值只算了长期平均涨幅的一半，不代表看涨或看跌；周期越长越不准。");
         var forecastNote = Note();
-        // 4. factors
-        var factorCard = Section("判断因素", "国内金价的方向主要来自国际金价（受美联储、美元、避险、央行购金影响），再经人民币汇率换算；买卖还要算上产品点差。");
-        var factorNote = Note();
-        // 5. decomposition
-        var splitCard = Section("国内金价是怎么来的", "国内金价 ≈ 国际金价（美元/盎司）× 美元兑人民币 ÷ 31.1035（克/盎司）+ 国内溢价");
-        var splitNote = Note();
-        // 6. spread
-        var spreadCard = Section("点差成本与回本", "点差 = 买入价 − 卖出（回购）价。假设按现价买入、到时按市场价卖出，价格要高过「现价 + 点差」才能覆盖这笔成本。下面的概率只看波动、不计任何趋势。");
-        var spreadRow = InputRow();
-        spreadRow.Children.Add(Caption("我的产品点差"));
-        spreadRow.Children.Add(NumberBox(() => preferences.GoldSpread, v => preferences.GoldSpread = v));
-        var spreadUnit = Caption("");
-        spreadRow.Children.Add(spreadUnit);
-        spreadRow.Children.Add(new TextBlock { Text = "（在招行 App 里看到买入 840、回购 836，就填 4）", Foreground = GoldMuted, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
-        body.Children.Remove(spreadRow);
-        body.Children.Insert(body.Children.IndexOf(spreadCard), spreadRow);
+        Group("三、买卖参考", "帮你自己做决定的参考数据：你的计划价位、点差回本和历史价位。鱼鱼不做买卖推荐，买不买、什么时候买由你决定。");
         // 7. plan
         var planCard = Section("我的计划价位", "你自己定的价位：鱼鱼帮你盯着，到价提醒，并按波动粗算触及的可能性。买不买由你决定。");
         var planRow = InputRow();
@@ -231,9 +229,26 @@ public partial class MainWindow
         body.Children.Remove(planRow);
         body.Children.Insert(body.Children.IndexOf(planCard), planRow);
         var planNote = Note();
+        // 6. spread
+        var spreadCard = Section("点差成本与回本", "点差 = 买入价 − 卖出（回购）价。假设按现价买入、到时按市场价卖出，价格要高过「现价 + 点差」才能覆盖这笔成本。下面的概率只看波动、不计任何趋势。");
+        var spreadRow = InputRow();
+        spreadRow.Children.Add(Caption("我的产品点差"));
+        spreadRow.Children.Add(NumberBox(() => preferences.GoldSpread, v => preferences.GoldSpread = v));
+        var spreadUnit = Caption("");
+        spreadRow.Children.Add(spreadUnit);
+        spreadRow.Children.Add(new TextBlock { Text = "（在招行 App 里看到买入 840、回购 836，就填 4）", Foreground = GoldMuted, FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 0, 0, 0) });
+        body.Children.Remove(spreadRow);
+        body.Children.Insert(body.Children.IndexOf(spreadCard), spreadRow);
         // 8. levels
         var levelCard = Section("历史参考价位", "按日线最高价、最低价统计，只做描述：现价位置 0% = 区间最低，100% = 区间最高。");
 
+        Group("四、判断依据", "国内金价的方向主要来自国际金价，再经人民币汇率换算。");
+        // 4. factors
+        var factorCard = Section("判断因素", "国内金价的方向主要来自国际金价（受美联储、美元、避险、央行购金影响），再经人民币汇率换算；买卖还要算上产品点差。");
+        var factorNote = Note();
+        // 5. decomposition
+        var splitCard = Section("国内金价是怎么来的", "国内金价 ≈ 国际金价（美元/盎司）× 美元兑人民币 ÷ 31.1035（克/盎司）+ 国内溢价");
+        var splitNote = Note();
         void RenderChart()
         {
             foreach (var (key, button) in rangeButtons)
@@ -259,6 +274,7 @@ public partial class MainWindow
             string Pct(double v) => v.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture) + "%";
             Brush Tone(double v) => v > 0 ? GoldUp : v < 0 ? GoldDown : GoldInk;
             spreadUnit.Text = unit;
+            headline.Text = GoldTodayText(true);
             foreach (var refreshBox in boxes) refreshBox();
 
             // 1. quotes
@@ -283,7 +299,7 @@ public partial class MainWindow
                 forecastCard.Child = GoldTable(new[] { "推测" }, new double[] { 0 }, new[] { new GoldCell[] { new(goldHistoryLoading ? "正在读取历史日线……" : goldOffline ? "测试模式下不联网。" : "还没有足够的历史日线（至少 300 个交易日）。", GoldMuted) } });
             else
                 forecastCard.Child = GoldTable(new[] { "周期", "中间值", "68% 的情况落在", "95% 的情况落在", "历史上同周期上涨占比" }, new double[] { 130, 120, 190, 190, 0 },
-                    f.Rows.Select(r => (IReadOnlyList<GoldCell>)new GoldCell[] { new(r.Label, Strong: true), new(P(r.Center)), new($"{P(r.Low68)} ～ {P(r.High68)}", Strong: true),
+                    (price > 0 ? new[] { CompanionGoldForecast.Session(f, price, DateTime.Now) } : Array.Empty<GoldForecastRow>()).Concat(f.Rows).Select(r => (IReadOnlyList<GoldCell>)new GoldCell[] { new(r.Label, Strong: true), new(P(r.Center)), new($"{P(r.Low68)} ～ {P(r.High68)}", Strong: true),
                         new($"{P(r.Low95)} ～ {P(r.High95)}", GoldMuted), new(double.IsFinite(r.UpShare) ? $"{r.UpShare * 100:0}%" : "—") }));
             forecastNote.Text = f == null ? goldHistoryStatus
                 : $"基准：{(f.LiveBase ? "招行现价" : $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘")} {P(f.Base)} {unit}；日波动 {f.DailyVolatility * 100:0.00}%（近 3 年平均 {f.LongVolatility * 100:0.00}%）。"
