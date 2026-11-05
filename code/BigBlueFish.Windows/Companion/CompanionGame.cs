@@ -165,13 +165,16 @@ public partial class MainWindow
         nextDeltaRead = now.AddSeconds(3);
         nextGameCheer = now.AddMinutes(15 + companionRandom.NextDouble() * 10);
         nextGameScreenRead = now.AddSeconds(20);
-        if (!preferences.GameCompanion) return;
+        var gameValues = new Dictionary<string, string> { ["游戏"] = name };
+        if (!preferences.GameCompanion) { PetEvent("game.start", name, double.NaN, gameValues); return; }
         if (crawl is { Finished: false } walking) walking.StopRequested = true;
         if (!brain.Busy) brain.Stop(); // free the GPU/RAM the local model holds while the owner plays
         UpdateCompanionVisibility();
         // Coming straight back after a short break (alt-tab, a meal) needs no second welcome.
+        string? greeting = null;
         if (IsVisible && !PuppetActive && chatWindow == null && (gameEndName != name || (now - gameEndUtc).TotalMinutes >= 10))
-            Say(deltaForce ? DeltaGreeting() : $"{bond.Address}要玩《{name}》啦？鱼鱼在旁边给你加油！冲呀～", "工作状态-雀跃庆祝");
+            Say(greeting = deltaForce ? DeltaGreeting() : $"{bond.Address}要玩《{name}》啦？鱼鱼在旁边给你加油！冲呀～", "工作状态-雀跃庆祝");
+        PetEvent("game.start", name, double.NaN, gameValues, said: greeting, ownReaction: greeting != null);
     }
 
     private void EndGameSession(DateTime now)
@@ -185,6 +188,7 @@ public partial class MainWindow
         deltaForeground = false;
         gameEndUtc = now;
         gameEndName = name;
+        PetEvent("game.end", name, played.TotalMinutes, new Dictionary<string, string> { ["游戏"] = name });
         SetClickThrough(false);
         if (deltaForce)
         {

@@ -41,22 +41,25 @@ public partial class MainWindow
 
     private void StartVideoAnimations()
     {
-        originalAnimationPolicy = animationPolicy = CompanionAnimationPolicy.Load(AnimationDirectory);
+        originalAnimationPolicy = animationPolicy = BuildBasePolicy(CompanionAnimationPolicy.Load(AnimationDirectory).Rules); // + extra clips, 动作库 pools
         ApplySkin(preferences.Skin, false); // the chosen appearance pack, if it is still there
         videoImage = new CompanionSpriteImage { Width = SpriteSize * 640 / 360, Height = SpriteSize,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom,
             Stretch = Stretch.Fill };
-        companionLayout.Children.Insert(0, videoImage);
+        companionLayout.Children.Insert(0, CreateSpriteHost(videoImage)); // hover / lean / squash effects
         videoPlayer = new(videoImage);
         videoPlayer.Failed += AnimationFailed; // self-check, retry, and stop only when it keeps failing
         videoPlayer.Warning += AnimationWarning;
         videoPlayer.FramePresented += AnimationPlayed;
         videoPlayer.FramePresented += MoveWithAnimation;
+        videoPlayer.FramePresented += TargetRunFrame;
         videoPlayer.FramePresented += CrawlFrame;
         companionReady = true;
+        string? welcome = null;
         if (PuppetActive) PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle");
-        else { PlayAnimation(animationPolicy.Find("女仆屈膝礼仪"), "Startup"); ShowGreetingNotice(WelcomeText(DateTime.Now)); }
+        else { welcome = WelcomeText(DateTime.Now); PlayAnimation(animationPolicy.Find("女仆屈膝礼仪"), "Startup"); ShowGreetingNotice(welcome); }
         File.WriteAllText("ready.status", "ready");
+        PetEvent("startup", said: welcome, ownReaction: welcome != null);
     }
     private CompanionAnimationContext AnimationContext() => new(DateTime.Now,
         WorkRecognitionEnabled: false, BreakfastHour: preferences.BreakfastHour,
@@ -67,6 +70,7 @@ public partial class MainWindow
         if (!companionReady || companionClosed) return;
         if (phase is not ("Startup" or "Exit")) EndGreetingNotice();
         currentAction = rule.Id; animationPhase = phase;
+        NoteAnimationStarted();
         bool suspendedDrag = phase == "Drag";
         // Clips from an appearance pack play whole unless the pack keeps the original timing (then segments apply).
         bool foreign = IsForeignClip(rule);
@@ -88,6 +92,7 @@ public partial class MainWindow
         if (animationPhase == "Drag") return; // Hold the final suspended pose until mouse release.
         if (CrawlAnimationFinished()) return;
         if (MimicAnimationFinished()) return;
+        if (BehaviourAnimationFinished()) return; // fling, run to a point, chat states, trigger rules
         if (animationPhase == "Outbound" && movementRule != null)
         {
             Left = movementEnd;
@@ -115,6 +120,8 @@ public partial class MainWindow
         if (FocusBoundary()) return;
         if (mimicActive) { PlayIdle(); return; } // in Delta Force she stays ready to mimic instead of wandering off
         if (exitAnimation || dragging || hiddenByUser || fullscreenHidden || companionSettings != null) { PlayIdle(); return; }
+        if (edgeHide != null) { PlayIdle(); return; } // tucked away at a screen edge: just breathing
+        if (IntentBoundary()) return;
         var local = DateTime.Now;
         var date = local.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         if (local.Hour == 23 && preferences.LastBrushDate != date)
@@ -127,11 +134,10 @@ public partial class MainWindow
         if (TryStartCrawlAtBoundary(false)) return;
         if (DateTime.UtcNow >= nextAction)
         {
-            nextAction = DateTime.UtcNow.AddSeconds(preferences.AnimationIntervalSeconds);
-            if (TryStartCrawlAtBoundary(true)) return;
-            var rule = animationPolicy.Choose("Event", AnimationContext(), companionRandom);
-            StartAnimationEvent(rule);
-            return;
+            nextAction = DateTime.UtcNow.AddSeconds(preferences.AnimationIntervalSeconds * ActivityIntervalFactor);
+            if (preferences.ActivityLevel != 0 && TryStartCrawlAtBoundary(true)) return; // 安静: no wandering crawls
+            if (ActivityWander()) return; // 活泼: sometimes runs a little way
+            if (ChooseActivityEvent() is { } rule) { StartAnimationEvent(rule); return; }
         }
         PlayIdle();
     }
@@ -161,10 +167,15 @@ public partial class MainWindow
     private void ClickAnimation()
     {
         if (PuppetActive || !companionReady || exitAnimation) return;
+        if (EdgeClick()) return; // peeking from an edge: come back
         CancelMovement();
+        StopTargetRun();
+        Pop();
         if (PokeReaction()) return;
-        PlayAnimation(animationPolicy.Choose("Click", AnimationContext(), companionRandom), "Click");
+        PlayAnimation(ClickRule(out int zone), "Click"); // head, body and tail answer differently
         ClickChatter();
+        PetEvent("click", ZoneNames[zone], ownReaction: true);
+        BeginTargetSelection(); // the next click on the screen sends her there
     }
     private void FinishDragAnimation()
     {

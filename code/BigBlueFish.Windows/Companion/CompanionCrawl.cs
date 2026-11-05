@@ -56,7 +56,7 @@ public partial class MainWindow
     private int CrawlMode => Math.Clamp(preferences.CrawlMode, 0, CrawlPatrolMode);
     private bool CrawlPatrolActive => CrawlMode == CrawlPatrolMode && !crawlSuppressed && !CrawlBlocked;
     private bool CanCrawl => companionReady && !companionClosed && !exitAnimation && !dragging && !PuppetActive
-        && !hiddenByUser && !fullscreenHidden && videoPlayer != null;
+        && !hiddenByUser && !fullscreenHidden && videoPlayer != null && edgeHide == null && coast == null && targetMove == null;
 
     private Rect UprightVisibleBounds => new(
         (Width - SpriteSize * 640 / 360) / 2 + SpriteSize * 208 / 360,

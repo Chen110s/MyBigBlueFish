@@ -36,6 +36,10 @@
 - **金价推测**：根据同一品种 2010 年以来的历史日线和波动率模型，推算下个交易日、一周、一个月、一年后的价格区间（按历史波动，约 68% / 95% 的情况会落在其中），附均线趋势和历史上涨比例；每天的推测自动记录、到期对答案。聊天问「明天金价会涨吗」「黄金下个月走势」即可。统计推算，不构成投资建议。
 - **金价面板**：右键「招行金价」时鱼鱼用气泡报现价和今天收盘的预计区间；右键「金价面板…」按「金价变化 → 金价预测 → 买卖参考 → 判断依据」用表格展示实时行情、价格走势折线图、今天 / 天 / 周 / 月 / 年推测、判断因素（国际金价、美联储预期、美元、避险、央行购金、人民币汇率、产品点差）、国内金价拆解、点差回本、你的计划买入 / 卖出价和历史参考价位。只提供数据和统计，不给买卖建议。
 - **动画自检与自动恢复**：动画没播出来时，鱼鱼自己检查解码器和动画文件、记下退出码和资源占用到 `data\companion-errors.log`，隔几秒自动重试；一直失败才停下并说明原因，之后每分钟再试，好了自动恢复，不用重启。
+- **互动手感**（参考 [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)）：鼠标在她左右时转向那一侧、靠近时轻轻倾斜；点头、身体、尾巴各有不同回应并带 Q 弹回弹；拖动时挤压拉伸，快速甩出会变成球滑出去、碰到屏幕边反弹；拖出屏幕就藏到边上，鼠标移到那条边时探出头来。
+- **点屏幕让她跑过去**：单击鱼鱼后再点屏幕任意位置，她跑过去挥手打招呼（5 秒内有效，右键取消）。
+- **活跃程度与聊天状态**：安静 / 均衡 / 活泼三档；你在聊天框打字时她侧耳倾听，本地模型思考时深度思考，出错时被吓一跳。
+- **动作库与触发规则**：右键「动作库…」按分类浏览、搜索、预览全部动作，让她立刻表演，或调整动作出现在随机 / 点击回应 / 待机 / 不自动播放哪个池里；「触发规则」让她在切换程序、整点、聊天说到某些话、金价变动、提醒到点、游戏进图撤离等事情发生时演指定的动作、说指定的话。
 - **形象包切换**：在 `skins` 文件夹里放入自己的动画素材（WebM / GIF / APNG / MOV / PNG，透明背景），设置里一键切换形象，缺的动作自动用待机动作补上；附带 4 套原版调色，以及取自同人游戏《鲸鱼娘养成计划》的 4 个成长期（10 / 15 / 20 / 25 岁）、Q版女仆和 8 套换装形象（CC BY-NC-SA 4.0，仅限非商业使用）；可设置每隔一段时间自动轮换。
 - **透明度**：设置里拖动滑块让鱼鱼变得半透明（气泡保持清晰），鼠标移上去时恢复不透明。
 - **三角洲里模仿你**：你开枪她举水枪开火、你开镜她出现准星、你受伤她红闪一抖、你缠绷带 / 打药 / 吃药她也跟着做（只读取按键和画面，不碰游戏）。
@@ -49,10 +53,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.14
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.15
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.14` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.15` 即为增强版。
 
 应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
 
@@ -252,6 +256,10 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Gold price outlook**: from the same contract's daily history since 2010 and a volatility model, she estimates the price range for the next trading day, a week, a month and a year (ranges that held the price about 68 % / 95 % of the time historically), with the moving-average trend and how often the price rose over the same span in the past; each day's estimate is recorded and checked once it comes due. Ask "明天金价会涨吗" (will gold rise tomorrow?) or "黄金下个月走势" (gold next month?). It is a statistical estimate, not investment advice.
 - **Gold panel**: right-click "招行金价" and she tells you the price and today's expected closing range in a bubble; right-click "金价面板…" for a window of tables ordered price moves → outlook → buy / sell references → driving factors — live quotes, a price chart, the day / week / month / year outlook, the driving factors (international gold, Fed expectations via Treasury yields, the dollar, risk sentiment, central-bank buying, the yuan, the product spread), how the domestic price is made up, the spread's break-even, your own planned buy / sell prices and historical reference levels. Data and statistics only; it gives no buy or sell recommendations.
 - **Animation self-check and recovery**: when a clip fails to play she checks the decoder and the clip, logs the exit code and her resource use to `data\companion-errors.log` and retries after a few seconds; only if it keeps failing does she stop and say why, and she keeps retrying every minute and recovers by herself — no restart needed.
+- **Interaction feel** (ideas from [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)): she turns towards the side the cursor is on and leans towards it; clicks on her head, body or tail get different replies with a squash-and-stretch pop; she stretches while dragged, turns into a ball and bounces off the screen edges when flung, and hides at an edge when dragged off the screen, peeking out when the cursor comes near.
+- **Run to a point**: click her once, then click anywhere on the screen and she runs there and waves (within 5 seconds; right-click cancels).
+- **Activity levels and chat awareness**: quiet / balanced / lively; she listens while you type in the chat box, thinks while the local model works, and is startled when something goes wrong.
+- **Action library and trigger rules**: right-click "动作库…" to browse, search and preview every action by category, make her perform one, or choose its pool (random, click reply, idle, never on its own); "触发规则" (trigger rules) make her play chosen actions and say chosen lines when you switch programs, on the hour, when you say certain things in chat, when the gold price moves, when a reminder is due, when a Delta Force raid starts or ends, and more.
 - **Appearance packs**: put your own transparent animations (WebM / GIF / APNG / MOV / PNG) into a folder under `skins` and switch her look in settings; actions the pack lacks fall back to its idle clip. Four recoloured packs are included, plus looks from the fan game "鲸鱼娘养成计划" (Whale Girl raising plan): four growth stages (age 10 / 15 / 20 / 25), a chibi maid and eight outfits (CC BY-NC-SA 4.0, non-commercial use only); the look can rotate automatically every few minutes.
 - **Transparency**: a slider in settings makes her see-through (the speech bubble stays clear); she turns solid while the mouse is on her.
 - **Mimicking you in Delta Force**: when you fire she fires her water gun, when you aim a crosshair appears, when you are hit she flashes red and flinches, and when you bandage, inject or take a pill she does the same (only key states and the screen are read; the game is never touched).
@@ -265,10 +273,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.14
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.15
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.14` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.15` when the companion edition is running.
 
 Updating to a newer official version through the in-app update replaces the companion edition's files.
 

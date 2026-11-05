@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.14`（构建时传入 `-p:InformationalVersion=1.0.5-companion.14`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.15`（构建时传入 `-p:InformationalVersion=1.0.5-companion.15`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -143,17 +143,34 @@
 - **退出保障不再致命**：解码器启动后会被放进一个「随鱼鱼一起结束」的作业对象，只是防止残留进程的保险。Windows 拒绝时（解码器已经退出，或别的软件把鱼鱼放进了另一个作业）不再中止播放，只在日志里记一笔（每小时最多一次）。
 - 形象包的动作失败时，仍然自动换回蓝色大肥鱼。
 
-## 十一、构建
+## 十一、互动手感、跑动与触发规则（参考 dsh-whale-pet）
+
+玩法参考 [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)（DeepSeek Harness 网页版的鲸鱼桌宠插件），在这里用 WPF 重新实现。设置 → 陪伴与外观 →「互动手感与动作」里每一项都能单独关闭；Windows 关闭了「显示动画」时，倾斜、回弹和甩出滑行自动停用。
+
+- **悬停注视**：鼠标在她身体左半边 / 右半边时转向那一侧，移开后恢复；画面里带文字的动作（写福字、深度思考等）不镜像；鼠标在她头上时不翻转，免得摸头摸到一半转身。
+- **交互动效**：光标靠近（左右 140 像素以内）时，她向光标轻轻倾斜（最多 3.5°，弹簧缓动）；点她一下先压扁再弹起，连点会更 Q；拖动时沿移动方向轻微拉伸，落下时小小回弹。
+- **点击分区**：头 → 害羞惊讶 / 傲娇生气；身体 → 元气挥手 / 开心跃动；尾巴 → 挠痒咯咯笑，偶尔用鲸鱼尾巴拍地。动作库里加入「点击回应」池的其他动作在所有部位都会出现。
+- **快速甩出**：松手时速度够快，她从「变成球」的球形开始滑出去，速度按指数衰减，碰到屏幕边反弹（法向速度保留 78%）并挤压一下，贴地滑行时摩擦更大；停下后动画自然播完、站起来。
+- **藏到屏幕边**：把她整个拖出所有显示器，她就贴着最近那条边藏起来；鼠标移到那条边、靠近她的位置时探出约四成身体，有话要说时也会探出来；点她就回到屏幕上并挥手，也可以直接拖回来；托盘「显示桌宠」同样能叫她回来。
+- **点屏幕让她跑过去**：单击鱼鱼后，屏幕会蒙上一层很淡的蓝色、指针变成十字，5 秒内点任意位置，她用「预备姿势奔跑」跑过去（目标在别的显示器时跑到自己显示器上最近的位置），到了「原地挥手打招呼」。这一层只接住这一下点击，不会点到下面的窗口，也不抢键盘焦点；右键、再点她或 5 秒不点就取消。玩游戏、专注、聊天、爬行时不进入选位置。
+- **活跃程度**：安静（动作间隔 ×1.5，只在原地演，不走路、不随机爬行）/ 均衡（和以前一样）/ 活泼（间隔 ×0.6，三成机会自己小跑一段）。
+- **聊天状态**：聊天框里打字时「侧耳倾听」，本地模型生成时（加载圈出现）「深度思考碎碎念」，聊天出错或走神时「被吓一跳」；状态变高 0.3 秒后切换、变低时停留 1.2 秒，避免闪来闪去，状态持续时动作循环。
+- **动作库**（右键「动作库…」）：按 dsh-whale-pet 的分类（待机、移动、点击回应、日常、工作、游戏、音乐舞蹈、美食、节日、四季、魔术、趣味、鲸鱼特色、梗图、余额、碎碎念等）浏览全部动作，可搜索、在窗口里循环预览（换了形象包时预览形象包的同名动作）、让她立刻演一遍；每个动作可以放进「随机动作」「点击回应」「待机」「不自动播放」或保持原用途，保存在 preferences 的 `PoolOverrides` 里；某个池里没有随时能播的动作时，这次修改不生效。
+- **触发规则**（动作库或设置里的「触发规则…」）：事件可选鱼鱼启动、主人离开后回来、整点、切换到某个程序、点鱼鱼（头 / 身体 / 尾巴）、摸头、喂零食、聊天时你说的话、鱼鱼回答完、聊天出错、提醒到点、关怀提醒、开始 / 结束专注、开始 / 结束游戏、三角洲进图 / 撤离 / 阵亡 / 被击倒、金价变动（可限定涨 / 跌和单次变动幅度）、金价到提醒价；每条规则可选多个动作（随机演一个）、一句气泡（支持 {称呼} {时间} {内容} {数值} {价格} {变动} 等占位符）、优先级和冷却时间，并能「试一下」。同一事件只触发优先级最高的一条；鱼鱼本来就要说的话（提醒、到价、专注完成、回答等）不会被盖住，规则的话接在下面；金价变动有规则时代替内置的变动提醒。规则保存在 `data\trigger-rules.json`。
+- **优先级**：你拖她、点她（2.5 秒内）、她在跑 / 爬 / 甩出 / 模仿三角洲、Agent 动作和动作库预览都不会被打断；聊天状态和规则按优先级抢占（倾听 30、思考 40、出错 60，规则默认 50）。
+- **新增的 4 个动作素材**：「预备姿势奔跑」「变成球」「侧耳倾听」「原地挥手打招呼」取自 dsh-whale-pet（提交 b61b445），由构建脚本从 `edge-crawl\clips` 复制到程序的 `assets\fish`。dsh-whale-pet 的 MIT 许可只覆盖代码，动画素材按其上游 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 的条款（允许开源使用、禁止商用）和形象的 CC BY-NC-SA 4.0 使用，所以只在本机使用、没有放进本仓库；说明见 `assets\fish\dsh-whale-pet-LICENSE.txt`。没有这些文件时，跑动用螃蟹走路、倾听用东张西望、挥手用元气挥手代替，甩出时不变球。
+
+## 十二、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.14
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.15
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 十二、改动的文件
+## 十三、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -179,6 +196,11 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionGoldFactors.cs` | 判断因素：国际金价、美债、美元、标普、人民币汇率、点差；国内金价拆解、参考价位、概率计算 |
 | `CompanionGoldPanel.cs` | 金价面板：行情 / 推测 / 因素 / 拆解 / 点差 / 计划价位 / 参考价位表格与走势折线图 |
 | `CompanionAnimationRecovery.cs` | 动画自检、失败日志、自动重试与恢复 |
+| `CompanionInteraction.cs` | 悬停注视、倾斜跟随、点击分区与 Q 弹、拖动拉伸、甩出变球与反弹、藏到屏幕边 |
+| `CompanionTargetMove.cs` | 点屏幕让她跑过去（选位置的蒙层、跑动、挥手），活泼模式的小跑 |
+| `CompanionBehaviour.cs` | 活跃程度、聊天状态感知、动作优先级仲裁、设置「互动手感与动作」 |
+| `CompanionTriggerRules.cs` | 触发规则：事件、条件匹配、保存、编辑窗口 |
+| `CompanionActionLibrary.cs` | 动作库：额外动作、动作池调整、分类浏览与预览 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
-修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式；退出保障失败不再中止播放，解码失败带退出码）、`CompanionJob.cs`（记录作业对象被拒绝时的 Windows 错误码）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
+修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式；退出保障失败不再中止播放，解码失败带退出码）、`CompanionJob.cs`（记录作业对象被拒绝时的 Windows 错误码）；另外在关怀、聊天、提醒、游戏、三角洲、金价等文件里加了触发规则的事件；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

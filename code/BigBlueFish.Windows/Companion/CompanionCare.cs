@@ -148,6 +148,7 @@ public partial class MainWindow
         UpdateFocus(now);
         UpdatePresence(now, local, idle, dt);
         UpdateHealth(dt, idle);
+        RuleTick(local); // 触发规则: 整点 and switching programs
     }
 
     // ---------------------------------------------------------------- presence
@@ -203,7 +204,8 @@ public partial class MainWindow
             var gone = now - awayStartUtc;
             sitActiveSeconds = eyeActiveSeconds = 0;
             if (gone.TotalMinutes >= 20) waterActiveSeconds = 0;
-            if (preferences.WelcomeBack && !awayWasFullscreen && CanChatter && !GameActive) WelcomeBack(gone, local);
+            string? welcome = preferences.WelcomeBack && !awayWasFullscreen && CanChatter && !GameActive ? WelcomeBack(gone, local) : null;
+            PetEvent("return", "", gone.TotalMinutes, said: welcome, ownReaction: welcome != null);
             return;
         }
 
@@ -236,6 +238,7 @@ public partial class MainWindow
                 nextBedtimeNudge = now.AddMinutes(30);
                 SaveBondSoon();
                 Say(line, "哈欠连天");
+                PetEvent("care", "睡觉", said: line, ownReaction: true);
                 return;
             }
         }
@@ -248,7 +251,7 @@ public partial class MainWindow
         }
     }
 
-    private void WelcomeBack(TimeSpan gone, DateTime local)
+    private string WelcomeBack(TimeSpan gone, DateTime local)
     {
         string duration = gone.TotalMinutes < 60 ? $"{(int)gone.TotalMinutes} 分钟"
             : gone.TotalHours < 24 ? $"{gone.TotalHours:0.#} 个小时" : "好久好久";
@@ -264,6 +267,7 @@ public partial class MainWindow
         AddAffection(.5);
         NoteInteraction();
         Say(line, "点击回应-元气挥手");
+        return line;
     }
 
     private string FarewellLine()
@@ -292,7 +296,9 @@ public partial class MainWindow
         if (water) { parts.Add("记得喝口水哦，鱼鱼也要咕噜咕噜补充水分"); animation ??= "鲸鱼吐泡泡特效"; waterActiveSeconds = 0; }
         string prefix = GameActive ? $"{bond.Address}，游戏间隙打断一下下～" : $"{bond.Address}，";
         RaiseForNotice();
-        Say(prefix + string.Join("；还有，", parts) + "～", GameActive ? null : animation);
+        string careLine = prefix + string.Join("；还有，", parts) + "～";
+        Say(careLine, GameActive ? null : animation);
+        PetEvent("care", (sit ? "久坐 " : "") + (eye ? "护眼 " : "") + (water ? "喝水" : ""), said: careLine, ownReaction: !GameActive);
     }
 
     // ---------------------------------------------------------------- focus timer
@@ -309,7 +315,9 @@ public partial class MainWindow
         breakUntil = DateTime.MinValue;
         if (crawl is { Finished: false } walking) walking.StopRequested = true; // come down and sit still
         if (hiddenByUser) RestoreCompanion();
-        Say($"好！鱼鱼陪{bond.Address}专注 {preferences.FocusMinutes} 分钟，不吵你～加油！", "工作状态-忙碌点按");
+        string line = $"好！鱼鱼陪{bond.Address}专注 {preferences.FocusMinutes} 分钟，不吵你～加油！";
+        Say(line, "工作状态-忙碌点按");
+        PetEvent("focus.start", said: line, ownReaction: true);
     }
 
     private void StopFocus(bool completed)
@@ -322,9 +330,14 @@ public partial class MainWindow
             NoteInteraction();
             sitActiveSeconds = eyeActiveSeconds = 0;
             breakUntil = DateTime.UtcNow.AddMinutes(preferences.BreakMinutes);
-            Say($"叮！专注完成～{bond.Address}超棒的！休息 {preferences.BreakMinutes} 分钟吧，起来走走、喝口水～", "工作状态-雀跃庆祝", true);
+            string done = $"叮！专注完成～{bond.Address}超棒的！休息 {preferences.BreakMinutes} 分钟吧，起来走走、喝口水～";
+            Say(done, "工作状态-雀跃庆祝", true);
+            PetEvent("focus.end", "完成", said: done, important: true, ownReaction: true);
+            return;
         }
-        else Say("好哒，专注先到这里～辛苦啦！", "点击回应-元气挥手");
+        const string early = "好哒，专注先到这里～辛苦啦！";
+        Say(early, "点击回应-元气挥手");
+        PetEvent("focus.end", "提前结束", said: early, ownReaction: true);
     }
 
     private void UpdateFocus(DateTime now)
@@ -394,7 +407,9 @@ public partial class MainWindow
         AddAffection(bond.Pats <= 10 ? 1.5 : .3);
         SetMood("开心", TimeSpan.FromMinutes(10));
         var lines = bond.Affection < 25 ? PatLinesShy : bond.Affection < 65 ? PatLinesWarm : PatLinesLove;
-        Say(Pick(lines), companionRandom.NextDouble() < .5 ? "点击回应-挠痒咯咯笑" : "点击回应-开心跃动");
+        string patLine = Pick(lines);
+        Say(patLine, companionRandom.NextDouble() < .5 ? "点击回应-挠痒咯咯笑" : "点击回应-开心跃动");
+        PetEvent("pat", said: patLine, ownReaction: true);
     }
 
     // Click hook: poking her many times makes her grumpy; otherwise she sometimes says something.
@@ -453,7 +468,9 @@ public partial class MainWindow
         NoteInteraction();
         AddAffection(snack.Affection);
         SetMood("满足", TimeSpan.FromMinutes(30));
-        Say(Pick(snack.Lines), snack.Animation);
+        string snackLine = Pick(snack.Lines);
+        Say(snackLine, snack.Animation);
+        PetEvent("feed", snack.Name, said: snackLine, ownReaction: true);
     }
 
     private void ShowSnackPanel()

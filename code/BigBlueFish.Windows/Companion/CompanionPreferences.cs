@@ -102,6 +102,17 @@ internal sealed class CompanionPreferences
     public double GoldAlertLow { get; set; }
     public double GoldSpread { get; set; }
     public bool GoldChangeAlert { get; set; } = true;
+    // Interaction feel and behaviour (ideas from luweiyabo/dsh-whale-pet).
+    public bool HoverFacing { get; set; } = true;
+    public bool InteractionFx { get; set; } = true;
+    public bool ClickZones { get; set; } = true;
+    public bool FlingBall { get; set; } = true;
+    public bool EdgeHide { get; set; } = true;
+    public bool ClickToMove { get; set; } = true;
+    public int ActivityLevel { get; set; } = 1; // 0 安静 · 1 均衡 · 2 活泼
+    public bool ChatSensing { get; set; } = true;
+    // 动作库: action id → pool ("Event", "Click", "Idle", "Disabled") chosen by the owner.
+    public System.Collections.Generic.Dictionary<string, string> PoolOverrides { get; set; } = new();
     public int BreakfastHour { get; set; } = 8;
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
@@ -170,6 +181,10 @@ internal sealed class CompanionPreferences
                     s.SkinRotateMinutes = Math.Clamp(s.SkinRotateMinutes, 1, 1440);
                     s.GoldVariety = string.IsNullOrWhiteSpace(s.GoldVariety) ? "AU9999" : s.GoldVariety;
                     s.GoldIntervalSeconds = GoldInterval(s.GoldIntervalSeconds);
+                    s.ActivityLevel = Math.Clamp(s.ActivityLevel, 0, 2);
+                    s.PoolOverrides ??= new();
+                    foreach (var key in System.Linq.Enumerable.ToList(s.PoolOverrides.Keys))
+                        if (string.IsNullOrWhiteSpace(key) || s.PoolOverrides[key] is not ("Event" or "Click" or "Idle" or "Disabled")) s.PoolOverrides.Remove(key);
                     s.GoldStep = double.IsFinite(s.GoldStep) ? Math.Clamp(s.GoldStep, .5, 1000) : 5;
                     s.GoldAlertHigh = double.IsFinite(s.GoldAlertHigh) && s.GoldAlertHigh > 0 ? s.GoldAlertHigh : 0;
                     s.GoldAlertLow = double.IsFinite(s.GoldAlertLow) && s.GoldAlertLow > 0 ? s.GoldAlertLow : 0;

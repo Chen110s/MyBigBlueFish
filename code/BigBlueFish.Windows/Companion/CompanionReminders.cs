@@ -169,6 +169,7 @@ public partial class MainWindow
         if (PuppetActive) { notifyIcon?.ShowBalloonTip(10000, "蓝色大肥鱼 · 提醒", line, System.Windows.Forms.ToolTipIcon.Info); return; }
         if (crawl is { Finished: false } walking) walking.StopRequested = true;
         Say(line, "点击回应-元气挥手", true);
+        PetEvent("reminder", string.Join("；", due.Select(r => r.Text)), said: line, important: true, ownReaction: true);
         if (GameActive || fullscreenHidden) notifyIcon?.ShowBalloonTip(10000, "蓝色大肥鱼 · 提醒", line, System.Windows.Forms.ToolTipIcon.Info);
     }
 

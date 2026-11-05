@@ -145,6 +145,13 @@ public partial class MainWindow
         if (changed) NotifyGoldViews(); // the forecast's middle and the panel follow the live price
         if (!changed && !double.IsNaN(goldLastRecorded)) return;
         if (quote.Price != goldLastRecorded) RecordGold(quote, local);
+        bool ruled = false; // an owner's rule for this change replaces the built-in change alert
+        if (!double.IsNaN(previous) && quote.Price != previous)
+        {
+            double change = quote.Price - previous;
+            ruled = PetEvent("gold.change", change > 0 ? "涨" : "跌", change, new Dictionary<string, string>
+            { ["价格"] = quote.Price.ToString("0.00"), ["变动"] = change.ToString("+0.00;-0.00"), ["品种"] = quote.Variety, ["单位"] = quote.Unit });
+        }
         if (!announce) return;
 
         // Watched levels: one alert each time the price crosses them.
@@ -153,8 +160,10 @@ public partial class MainWindow
             if (goldHighArmed && quote.Price >= preferences.GoldAlertHigh)
             {
                 goldHighArmed = false;
-                SayGold($"{bond.Address}！招行{quote.Variety}涨到 {quote.Price:0.00} {quote.Unit} 啦，到你设的 {preferences.GoldAlertHigh:0.##} 了！",
-                    true, "余额-钱袋满溢", true);
+                string high = $"{bond.Address}！招行{quote.Variety}涨到 {quote.Price:0.00} {quote.Unit} 啦，到你设的 {preferences.GoldAlertHigh:0.##} 了！";
+                SayGold(high, true, "余额-钱袋满溢", true);
+                PetEvent("gold.alert", "高于", quote.Price, new Dictionary<string, string> { ["价格"] = quote.Price.ToString("0.00"), ["品种"] = quote.Variety },
+                    said: high, important: true, ownReaction: true);
                 goldAnnounced = quote.Price;
                 return;
             }
@@ -165,8 +174,10 @@ public partial class MainWindow
             if (goldLowArmed && quote.Price <= preferences.GoldAlertLow)
             {
                 goldLowArmed = false;
-                SayGold($"{bond.Address}！招行{quote.Variety}跌到 {quote.Price:0.00} {quote.Unit} 了，低于你设的 {preferences.GoldAlertLow:0.##}！",
-                    false, "余额-数金皱眉", true);
+                string low = $"{bond.Address}！招行{quote.Variety}跌到 {quote.Price:0.00} {quote.Unit} 了，低于你设的 {preferences.GoldAlertLow:0.##}！";
+                SayGold(low, false, "余额-数金皱眉", true);
+                PetEvent("gold.alert", "低于", quote.Price, new Dictionary<string, string> { ["价格"] = quote.Price.ToString("0.00"), ["品种"] = quote.Variety },
+                    said: low, important: true, ownReaction: true);
                 goldAnnounced = quote.Price;
                 return;
             }
@@ -186,7 +197,7 @@ public partial class MainWindow
         }
 
         // 金价变动提醒: every change of the price, in red when it rose and in green when it fell.
-        if (preferences.GoldChangeAlert && !double.IsNaN(previous) && quote.Price != previous && GoldAlertAllowed)
+        if (preferences.GoldChangeAlert && !ruled && !double.IsNaN(previous) && quote.Price != previous && GoldAlertAllowed)
         {
             double step = quote.Price - previous;
             SayGold($"招行 {quote.Variety} {quote.Price:0.00} {quote.Unit} {(step > 0 ? "↑" : "↓")}{Math.Abs(step):0.00}（{local:HH:mm:ss}，今天 {quote.UpDown:+0.00;-0.00}）",

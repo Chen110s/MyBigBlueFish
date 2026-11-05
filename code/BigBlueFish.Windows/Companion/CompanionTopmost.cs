@@ -44,7 +44,7 @@ public partial class MainWindow
     private void ApplyTopmost()
     {
         if (noticeRaised && bubble.Visibility != Visibility.Visible) noticeRaised = false;
-        bool wanted = preferences.AlwaysOnTop || noticeRaised || gameForeground && preferences.GameCompanion;
+        bool wanted = preferences.AlwaysOnTop || noticeRaised || targetOverlays != null || gameForeground && preferences.GameCompanion;
         if (Topmost != wanted) Topmost = wanted;
     }
 

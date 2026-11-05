@@ -420,6 +420,8 @@ public partial class MainWindow
                 if (screenWasUp || !fresh || havoc) break;
                 var (line, animation, important) = RecordDeltaRaid(reading.Event == DeltaForceEvent.Extracted, reading.Map, false, now);
                 DeltaSay(line, animation, important);
+                PetEvent("delta", reading.Event == DeltaForceEvent.Extracted ? "撤离" : "阵亡", double.NaN, new Dictionary<string, string> { ["地图"] = reading.Map },
+                    said: line, important: important, ownReaction: true);
                 break;
             case DeltaForceEvent.RaidStart:
                 DeltaRaidStart(reading.Map, now);
@@ -429,7 +431,9 @@ public partial class MainWindow
                 {
                     deltaDownedCooldown = now.AddMinutes(2);
                     if (mimicActive) MimicHurt(true); // flinch first; her line follows without replacing that pose
-                    DeltaSay(Fill(Pick(DeltaDownedLines)), mimicActive ? null : "点击回应-害羞惊讶");
+                    string downed = Fill(Pick(DeltaDownedLines));
+                    DeltaSay(downed, mimicActive ? null : "点击回应-害羞惊讶");
+                    PetEvent("delta", "被击倒", said: downed, ownReaction: true);
                 }
                 break;
             case DeltaForceEvent.Victory:
@@ -457,7 +461,9 @@ public partial class MainWindow
         deltaRaidStartUtc = now;
         deltaRaidMap = map;
         deltaResultScreenUp = false;
-        DeltaSay(string.Format(Pick(DeltaRaidLines), bond.Address, map), companionRandom.NextDouble() < .5 ? "东张西望" : "工作状态-原地踱步张望");
+        string raidLine = string.Format(Pick(DeltaRaidLines), bond.Address, map);
+        DeltaSay(raidLine, companionRandom.NextDouble() < .5 ? "东张西望" : "工作状态-原地踱步张望");
+        PetEvent("delta", "进图 " + map, double.NaN, new Dictionary<string, string> { ["地图"] = map }, said: raidLine, ownReaction: true);
     }
 
     // Records one raid and returns what she says about it (the caller decides whether to say it).

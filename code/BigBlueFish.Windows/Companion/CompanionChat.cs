@@ -114,6 +114,7 @@ public partial class MainWindow
         text.TextChanged += (_, _) =>
         {
             placeholder.Visibility = text.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (text.Text.Length > 0) NoteChatTyping(); // she listens while you type
             send.IsEnabled = !chatBusy && !string.IsNullOrWhiteSpace(text.Text);
         };
         window.PreviewKeyDown += (_, e) =>
@@ -169,6 +170,7 @@ public partial class MainWindow
         bond.Chats++;
         if (bond.Chats <= 20) AddAffection(.6);
         CaptureNickname(message);
+        PetEvent("chat.message", message);
         try
         {
             var reminder = CompanionReminderParser.LooksLikeRequest(message) ? TryCreateReminder(message) : null;
@@ -204,6 +206,7 @@ public partial class MainWindow
             if (brain.Busy)
             {
                 EndModelSpeech();
+                NoteChatError();
                 ChatReply(message, "唔……鱼鱼的小脑袋还在忙，等一下下再说好不好～");
                 return;
             }
@@ -216,6 +219,7 @@ public partial class MainWindow
             if (companionClosed) return;
             if (reply.Length == 0)
             {
+                NoteChatError();
                 ChatReply(message, "唔……鱼鱼刚刚走神了，" + bond.Address + "可以再说一遍吗？", remember: false);
                 return;
             }
@@ -224,6 +228,7 @@ public partial class MainWindow
             chatSession.Add(new CompanionBrain.ChatMessage("assistant", reply));
             if (chatSession.Count > 12) chatSession.RemoveRange(0, chatSession.Count - 12);
             RememberChat(message, reply);
+            PetEvent("chat.reply", reply, said: reply); // the rule's words go below her answer
         }
         finally
         {

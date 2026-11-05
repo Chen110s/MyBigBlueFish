@@ -322,6 +322,7 @@ public partial class MainWindow
     private void CompanionDisplayChanged(object? s, EventArgs e) => Dispatcher.BeginInvoke(() =>
     {
         StopCrawlNow(false);
+        LeaveEdgeHide(); // the monitor she hid at may be gone
         ClampCompanion();
         anchor = new Point(Left, Top);
     });
@@ -362,7 +363,11 @@ public partial class MainWindow
             0);
     }
 
-    private void ClampCompanion() => CompanionEdgeLayout.Clamp(this);
+    private void ClampCompanion()
+    {
+        if (edgeHide != null) { PlaceAtEdge(); return; } // tucked away at a screen edge on purpose
+        CompanionEdgeLayout.Clamp(this);
+    }
     private void SaveCompanion()
     {
         if (preferences == null)
@@ -394,6 +399,7 @@ public partial class MainWindow
             PublishMcpInteraction("click", new { button = "left", count = 2, Left, Top });
             return;
         }
+        OnCompanionPressed(); // stops a slide, cancels choosing a destination
         dragging = true;
         dragged = false;
         CancelMovement();
@@ -415,6 +421,7 @@ public partial class MainWindow
         {
             dragged = true;
             EndCrawl(false, false);
+            OnDragStarted();
             PublishMcpInteraction("drag_start", new { Left, Top });
             if (!PuppetActive) PlayCompanion("drag");
         }
@@ -423,6 +430,7 @@ public partial class MainWindow
         {
             Left = windowStart.X + dx;
             Top = windowStart.Y + dy;
+            OnDragMoved(); // speed for the stretch and a fling
         }
         e.Handled = true;
     }
@@ -434,6 +442,7 @@ public partial class MainWindow
         e.Handled = true;
         dragging = false;
         ReleaseMouseCapture();
+        if (dragged && DropWithInteraction()) return; // flung into a ball, or tucked away at an edge
         ClampCompanion();
         anchor = new Point(Left, Top);
         SaveCompanion();
@@ -668,6 +677,8 @@ public partial class MainWindow
         }
 
         UpdateCompanionVisibility();
+        InteractionTick(now);
+        UpdateIntent(now);
         if (exitAnimation || hiddenByUser || fullscreenHidden || !companionReady || dragging)
             return;
         if (bubble.Visibility == Visibility.Visible && now > bubbleUntil)
@@ -740,10 +751,10 @@ public partial class MainWindow
         var menu = new CompanionTrayMenu();
         menu.Opening += (_, _) => {
             lastExternalForeground = CompanionNative.ResolveSpeechForeground(CompanionNative.GetForegroundWindow(), lastExternalForeground);
-            menu.Items[0].Text = IsVisible ? "隐藏桌宠" : "显示桌宠";
+            menu.Items[0].Text = IsVisible && !EdgeHidden ? "隐藏桌宠" : "显示桌宠";
             foreach (int index in new[] { 2, 3 }) if (menu.Items.Count > index) menu.Items[index].Enabled = !PuppetActive;
         };
-        menu.Items.Add("显示桌宠", null, (_, _) => Dispatcher.Invoke(() => { if (IsVisible) HideCompanion(); else RestoreCompanion(); }));
+        menu.Items.Add("显示桌宠", null, (_, _) => Dispatcher.Invoke(() => { if (IsVisible && !EdgeHidden) HideCompanion(); else RestoreCompanion(); }));
         menu.Items.Add("设置", null, (_, _) => Dispatcher.Invoke(OpenCompanionSettings));
         menu.Items.Add("天气", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionWeather).Task.Unwrap());
         menu.Items.Add("吐字测试", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionTest).Task.Unwrap());
@@ -766,6 +777,7 @@ public partial class MainWindow
     {
         if (companionClosed || exitAnimation || exitReady) return;
         hiddenByUser = false;
+        LeaveEdgeHide();
         UpdateCompanionVisibility();
         ClampCompanion();
         RaiseCompanion();
@@ -814,6 +826,8 @@ public partial class MainWindow
         companionMenuDismissal?.Dispose();
         companionTimer?.Stop();
         singleClickTimer?.Stop();
+        EndTargetSelection();
+        if (fxRendering) { System.Windows.Media.CompositionTarget.Rendering -= FxFrame; fxRendering = false; }
         videoPlayer?.Dispose();
         loadingSpinner?.Stop();
         speech?.Dispose();

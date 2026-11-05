@@ -247,6 +247,7 @@ public partial class MainWindow
             FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) });
         AddOpacitySettings(p);
         AddSkinSettings(p);
+        AddInteractionSettings(p);
         p = pages[1];
         var freq = new ComboBox
         {
