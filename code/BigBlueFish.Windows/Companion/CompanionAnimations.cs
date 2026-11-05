@@ -48,14 +48,9 @@ public partial class MainWindow
             Stretch = Stretch.Fill };
         companionLayout.Children.Insert(0, videoImage);
         videoPlayer = new(videoImage);
-        videoPlayer.Failed += error =>
-        {
-            File.WriteAllText("companion-errors.log", "动画播放失败：" + error);
-            if (exitAnimation) { exitReady = true; base.Close(); return; }
-            if (RecoverFromSkinFailure()) return;
-            companionReady = false;
-            ShowCompanionNotice("动画未能播放，请检查动画组件是否完整。");
-        };
+        videoPlayer.Failed += AnimationFailed; // self-check, retry, and stop only when it keeps failing
+        videoPlayer.Warning += AnimationWarning;
+        videoPlayer.FramePresented += AnimationPlayed;
         videoPlayer.FramePresented += MoveWithAnimation;
         videoPlayer.FramePresented += CrawlFrame;
         companionReady = true;

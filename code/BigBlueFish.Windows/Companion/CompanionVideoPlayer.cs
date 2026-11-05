@@ -28,6 +28,8 @@ internal sealed class CompanionVideoPlayer : IDisposable
     internal double StartSeconds { get; private set; }
     internal bool Paused { get => paused; set => paused = value; }
     internal event Action<string>? Failed;
+    internal event Action<string>? Warning;
+    internal string CurrentFile { get; private set; } = "";
     internal event Action<double>? FramePresented;
     internal CompanionVideoPlayer(Image target) { image = target; image.Source = bitmap; }
     // normalize: a file from an appearance pack, which may be any size, frame rate or format
@@ -43,7 +45,7 @@ internal sealed class CompanionVideoPlayer : IDisposable
         if (disposed) return;
         image.RenderTransformOrigin = new(.5, .5);
         image.RenderTransform = mirrored ? new ScaleTransform(-1, 1) : Transform.Identity;
-        Frames = 0; PositionSeconds = startSeconds;
+        Frames = 0; PositionSeconds = startSeconds; CurrentFile = file;
         StartSeconds = startSeconds; PlaybackRate = playbackRate;
         cancellation = new();
         var token = cancellation.Token;
@@ -71,7 +73,11 @@ internal sealed class CompanionVideoPlayer : IDisposable
         try
         {
             process.Start(); decoder = process;
-            if (!job.Attach(process)) throw new IOException("无法关联动画解码进程");
+            // The job only makes sure the decoder ends with the pet; it is a safety net, not a requirement. Windows refuses it
+            // when the decoder has already stopped (Decode then reports why) or when other software put the pet in another job.
+            if (!job.Attach(process, out int attachError))
+                Warning?.Invoke($"动画解码进程未能加入退出保障（Windows 错误 {attachError}，解码器" +
+                    (process.HasExited ? $"已退出，退出码 0x{(uint)process.ExitCode:X8}）" : "仍在运行，照常播放）"));
             _ = Task.Run(() => Decode(process, id, token, completed, startSeconds, playbackRate));
         }
         catch (Exception ex)
@@ -124,7 +130,12 @@ internal sealed class CompanionVideoPlayer : IDisposable
             await WaitUntil(count / (Fps * playbackRate)); // Give the final frame its full display interval.
             await process.WaitForExitAsync(token);
             var error = await errors;
-            if (process.ExitCode != 0 || count == 0) throw new IOException("动画解码失败：" + error);
+            if (process.ExitCode != 0 || count == 0)
+            {
+                error = error.Trim();
+                if (error.Length > 300) error = error[^300..];
+                throw new IOException($"动画解码失败（退出码 0x{(uint)process.ExitCode:X8}）" + (error.Length > 0 ? "：" + error : ""));
+            }
             await image.Dispatcher.InvokeAsync(() => { if (id == generation && !disposed) completed(); });
         }
         catch (OperationCanceledException) { }

@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.13`（构建时传入 `-p:InformationalVersion=1.0.5-companion.13`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.14`（构建时传入 `-p:InformationalVersion=1.0.5-companion.14`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -134,17 +134,26 @@
 - 只读取按键状态和屏幕画面，不向游戏发送任何操作、也不读取游戏内存。
 - 现有动画中没有开枪、包扎等动作，这些道具和特效是在鱼鱼身上实时绘制的。
 
-## 十、构建
+## 十、动画自检与自动恢复
+
+动画由自带的解码器（`media\ffmpeg.exe`）逐帧解出。以前只要有一次没播出来，鱼鱼就停下并提示「动画未能播放，请检查动画组件是否完整」，要重启才能恢复；现在：
+
+- **自检**：哪个动作失败，她就检查解码器和动画文件在不在、解码器的退出码是什么，把结果连同本进程的 GDI / USER 对象数、句柄数、内存和运行时长追加到 `data\companion-errors.log`（不再覆盖之前的记录；超过 256 KB 时旧日志改名为 `.old`）。
+- **自动重试**：分别隔 2 秒、8 秒、18 秒再播一次；三次都失败才停下，并用气泡说出自检得出的原因（例如解码器被安全软件隔离、系统资源暂时用尽 0xC0000142、文件损坏）。停下后每分钟再试一次，一旦能播放就自己恢复并告诉你。
+- **退出保障不再致命**：解码器启动后会被放进一个「随鱼鱼一起结束」的作业对象，只是防止残留进程的保险。Windows 拒绝时（解码器已经退出，或别的软件把鱼鱼放进了另一个作业）不再中止播放，只在日志里记一笔（每小时最多一次）。
+- 形象包的动作失败时，仍然自动换回蓝色大肥鱼。
+
+## 十一、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.13
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.14
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 十一、改动的文件
+## 十二、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -169,6 +178,7 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionGoldForecastWindow.cs` | 金价推测：下载历史日线、聊天回答、设置页摘要 |
 | `CompanionGoldFactors.cs` | 判断因素：国际金价、美债、美元、标普、人民币汇率、点差；国内金价拆解、参考价位、概率计算 |
 | `CompanionGoldPanel.cs` | 金价面板：行情 / 推测 / 因素 / 拆解 / 点差 / 计划价位 / 参考价位表格与走势折线图 |
+| `CompanionAnimationRecovery.cs` | 动画自检、失败日志、自动重试与恢复 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
-修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
+修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式；退出保障失败不再中止播放，解码失败带退出码）、`CompanionJob.cs`（记录作业对象被拒绝时的 Windows 错误码）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。

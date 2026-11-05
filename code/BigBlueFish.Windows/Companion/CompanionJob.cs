@@ -9,7 +9,7 @@ internal sealed class CompanionJob : IDisposable
     static extern IntPtr CreateJobObject(IntPtr a, string? n);
     [DllImport("kernel32.dll")]
     static extern bool SetInformationJobObject(IntPtr h, int c, IntPtr p, uint n);
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool AssignProcessToJobObject(IntPtr j, IntPtr p);
     [DllImport("kernel32.dll")]
     static extern bool CloseHandle(IntPtr h);
@@ -34,6 +34,13 @@ internal sealed class CompanionJob : IDisposable
     }
 
     internal bool Attach(Process p) => AssignProcessToJobObject(handle, p.Handle);
+    // The same, with the Windows error code when it is refused (for the log).
+    internal bool Attach(Process p, out int error)
+    {
+        bool ok = AssignProcessToJobObject(handle, p.Handle);
+        error = ok ? 0 : Marshal.GetLastPInvokeError();
+        return ok;
+    }
     public void Dispose()
     {
         if (handle != IntPtr.Zero)
