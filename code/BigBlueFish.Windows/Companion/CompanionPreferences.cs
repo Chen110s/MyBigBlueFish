@@ -118,6 +118,8 @@ internal sealed class CompanionPreferences
     // 聊天记录: a copy of every chat round (and of DeepSeek 网页版 conversations the owner saves); "" = data\chats.
     public bool ChatLogEnabled { get; set; } = true;
     public string ChatLogFolder { get; set; } = "";
+    // DeepSeek 网页版 without the system proxy (DeepSeek only offers WeChat sign-in to mainland China networks).
+    public bool DeepSeekDirect { get; set; }
     // 动作库: action id → pool ("Event", "Click", "Idle", "Disabled") chosen by the owner.
     public System.Collections.Generic.Dictionary<string, string> PoolOverrides { get; set; } = new();
     public int BreakfastHour { get; set; } = 8;

@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.17`（构建时传入 `-p:InformationalVersion=1.0.5-companion.17`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.18`（构建时传入 `-p:InformationalVersion=1.0.5-companion.18`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -163,6 +163,7 @@
 ## 十二、DeepSeek 网页版与聊天记录
 
 - **DeepSeek 网页版**：右键「DeepSeek 网页版…」（或 设置 → 互动与关怀 → 聊天与记忆 →「打开 DeepSeek 网页版…」）用 Microsoft Edge WebView2 打开官方网页版 chat.deepseek.com。你自己登录、像在浏览器里一样免费聊；登录信息保存在 `data\webview2`。窗口上方有「保存这次对话」「打开保存文件夹」「刷新」「在浏览器中打开」。弹出的链接：DeepSeek 自己的页面在同一窗口打开，其他网站交给默认浏览器。
+- **微信扫码登录**：窗口上方（或 设置 → 互动与关怀 → 聊天与记忆）的「微信扫码登录」打开 DeepSeek 的登录页 chat.deepseek.com/sign_in，二维码是 DeepSeek 自己的（微信开放平台的 WxLogin 组件），用手机微信扫一扫即可登录，扫码即表示同意 DeepSeek 的用户协议与隐私政策。DeepSeek 只给它判断在中国大陆的网络显示微信扫码和短信验证码登录，其他地区只有手机号 / 邮箱 + 密码、Google、Apple 登录。所以点这个按钮时（只在这时）鱼鱼会看一眼页面上 DeepSeek 判断的网络地区（`<meta name="region">`），不是大陆就说明原因，并可以让网页版改用直连（WebView2 的 `--no-proxy-server`，不走系统代理）再试；直连打不开时会提示改回。设置里也有「网页版直连」开关。鱼鱼不会改动 DeepSeek 页面的内容或判断，网络出口本身不在大陆时这里就用不了微信扫码，可改用手机号 / 邮箱 + 密码登录。
 - **不做自动对接**：DeepSeek 用户协议（3.5、5.1 条）不允许用机器人、自动程序抓取或镜像网页版内容，也不允许逆向，所以鱼鱼不会替你在网页里发消息，也不会在后台读取页面；只有你点「保存这次对话」时，才读一次当前页面上的对话（优先按消息分成「你」和「DeepSeek」，认不出时保存整块对话区的文字），存成 `DeepSeek-日期时间-标题.md`。你在网页版窗口里操作时，鱼鱼会在旁边侧耳倾听（只看有没有键盘鼠标操作，不看内容）。
 - **聊天记录**：鱼鱼聊天框里的每一轮（你说的话和她的回答，不管来自本地模型还是她自己的功能）追加到 `鱼鱼聊天-yyyy-MM-dd.md`，可在设置里关闭。保存位置默认 `data\chats`，可「选择文件夹…」改成已有的文件夹；那个文件夹不在了就暂时存回默认位置。
 - **组件**：NuGet 包 Microsoft.Web.WebView2 1.0.4258.31（BSD 风格许可）；`Microsoft.Web.WebView2.*.dll` 和 `WebView2Loader.dll` 由构建脚本复制到程序目录，程序在打开网页版窗口时才加载它们。没有 WebView2 运行时的电脑会提示下载（Windows 11 自带）。
@@ -194,7 +195,7 @@
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.17
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.18
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
