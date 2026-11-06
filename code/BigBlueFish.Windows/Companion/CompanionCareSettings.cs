@@ -66,6 +66,7 @@ public partial class MainWindow
         });
         forget.HorizontalAlignment = HorizontalAlignment.Left;
         page.Children.Add(forget);
+        AddChatLogSettings(page, Note); // 聊天记录 and DeepSeek 网页版
 
         // ---- care
         Section("关怀提醒");

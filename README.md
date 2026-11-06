@@ -40,6 +40,7 @@
 - **点屏幕让她跑过去**：单击鱼鱼后再点屏幕任意位置，她跑过去挥手打招呼（5 秒内有效，右键取消）。
 - **活跃程度与聊天状态**：安静 / 均衡 / 活泼三档；你在聊天框打字时她侧耳倾听，本地模型思考时深度思考，出错时被吓一跳。
 - **动作库与触发规则**：右键「动作库…」按分类浏览、搜索、预览全部动作，让她立刻表演，或调整动作出现在随机 / 点击回应 / 待机 / 不自动播放哪个池里；「触发规则」让她在切换程序、整点、聊天说到某些话、金价变动、提醒到点、游戏进图撤离等事情发生时演指定的动作、说指定的话。
+- **DeepSeek 网页版与聊天记录**：右键「DeepSeek 网页版…」在鱼鱼的窗口里打开官方网页版（chat.deepseek.com），自己登录、像平时一样免费聊，鱼鱼不代发消息、不自己读页面；点「保存这次对话」把当前对话存成 Markdown。和鱼鱼聊天框里的每一轮聊天也会另存一份（每天一个文件）。保存位置默认 `data\chats`，可在设置里换成已有的文件夹。
 - **形象包切换**：在 `skins` 文件夹里放入自己的动画素材（WebM / GIF / APNG / MOV / PNG，透明背景），设置里一键切换形象，缺的动作自动用待机动作补上；附带 4 套原版调色，以及取自同人游戏《鲸鱼娘养成计划》的 4 个成长期（10 / 15 / 20 / 25 岁）、Q版女仆和 8 套换装形象（CC BY-NC-SA 4.0，仅限非商业使用）；可设置每隔一段时间自动轮换。
 - **透明度**：设置里拖动滑块让鱼鱼变得半透明（气泡保持清晰），鼠标移上去时恢复不透明。
 - **三角洲里模仿你**：你开枪她举水枪开火、你开镜她出现准星、你受伤她红闪一抖、你缠绷带 / 打药 / 吃药她也跟着做（只读取按键和画面，不碰游戏）。
@@ -53,10 +54,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.15
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.16
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.15` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.16` 即为增强版。
 
 应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
 
@@ -260,6 +261,7 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Run to a point**: click her once, then click anywhere on the screen and she runs there and waves (within 5 seconds; right-click cancels).
 - **Activity levels and chat awareness**: quiet / balanced / lively; she listens while you type in the chat box, thinks while the local model works, and is startled when something goes wrong.
 - **Action library and trigger rules**: right-click "动作库…" to browse, search and preview every action by category, make her perform one, or choose its pool (random, click reply, idle, never on its own); "触发规则" (trigger rules) make her play chosen actions and say chosen lines when you switch programs, on the hour, when you say certain things in chat, when the gold price moves, when a reminder is due, when a Delta Force raid starts or ends, and more.
+- **DeepSeek web chat and chat logs**: right-click "DeepSeek 网页版…" to open the official chat.deepseek.com in one of her windows; you log in and chat for free as in a browser (she never sends messages or reads the page on her own), and "保存这次对话" saves the conversation on the page as Markdown. Every round in her own chat box is also copied to a daily Markdown file. Both go to `data\chats` by default, or to a folder you choose in the settings.
 - **Appearance packs**: put your own transparent animations (WebM / GIF / APNG / MOV / PNG) into a folder under `skins` and switch her look in settings; actions the pack lacks fall back to its idle clip. Four recoloured packs are included, plus looks from the fan game "鲸鱼娘养成计划" (Whale Girl raising plan): four growth stages (age 10 / 15 / 20 / 25), a chibi maid and eight outfits (CC BY-NC-SA 4.0, non-commercial use only); the look can rotate automatically every few minutes.
 - **Transparency**: a slider in settings makes her see-through (the speech bubble stays clear); she turns solid while the mouse is on her.
 - **Mimicking you in Delta Force**: when you fire she fires her water gun, when you aim a crosshair appears, when you are hit she flashes red and flinches, and when you bandage, inject or take a pill she does the same (only key states and the screen are read; the game is never touched).
@@ -273,10 +275,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.15
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.16
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.15` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.16` when the companion edition is running.
 
 Updating to a newer official version through the in-app update replaces the companion edition's files.
 

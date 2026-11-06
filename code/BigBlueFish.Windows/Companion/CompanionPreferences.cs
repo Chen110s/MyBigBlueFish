@@ -111,6 +111,9 @@ internal sealed class CompanionPreferences
     public bool ClickToMove { get; set; } = true;
     public int ActivityLevel { get; set; } = 1; // 0 安静 · 1 均衡 · 2 活泼
     public bool ChatSensing { get; set; } = true;
+    // 聊天记录: a copy of every chat round (and of DeepSeek 网页版 conversations the owner saves); "" = data\chats.
+    public bool ChatLogEnabled { get; set; } = true;
+    public string ChatLogFolder { get; set; } = "";
     // 动作库: action id → pool ("Event", "Click", "Idle", "Disabled") chosen by the owner.
     public System.Collections.Generic.Dictionary<string, string> PoolOverrides { get; set; } = new();
     public int BreakfastHour { get; set; } = 8;
@@ -183,6 +186,7 @@ internal sealed class CompanionPreferences
                     s.GoldIntervalSeconds = GoldInterval(s.GoldIntervalSeconds);
                     s.ActivityLevel = Math.Clamp(s.ActivityLevel, 0, 2);
                     s.PoolOverrides ??= new();
+                    s.ChatLogFolder ??= "";
                     foreach (var key in System.Linq.Enumerable.ToList(s.PoolOverrides.Keys))
                         if (string.IsNullOrWhiteSpace(key) || s.PoolOverrides[key] is not ("Event" or "Click" or "Idle" or "Disabled")) s.PoolOverrides.Remove(key);
                     s.GoldStep = double.IsFinite(s.GoldStep) ? Math.Clamp(s.GoldStep, .5, 1000) : 5;

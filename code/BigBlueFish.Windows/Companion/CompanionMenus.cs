@@ -76,6 +76,10 @@ public partial class MainWindow
         goldPanelItem.Icon = Icon("\uE8A5");
         goldPanelItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowGoldPanel); };
         companionContextMenu.Items.Add(goldPanelItem);
+        var deepSeekItem = new MenuItem { Header = "DeepSeek 网页版…" };
+        deepSeekItem.Icon = Icon("\uE774");
+        deepSeekItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowDeepSeekWeb); };
+        companionContextMenu.Items.Add(deepSeekItem);
         var libraryItem = new MenuItem { Header = "动作库…" };
         libraryItem.Icon = Icon("\uE8FD");
         libraryItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowActionLibrary); };
@@ -90,7 +94,7 @@ public partial class MainWindow
             crawlItem.Header = CrawlMenuHeader;
             topmostItem.Header = TopmostHeader();
             goldItem.Header = goldQuote is { } gold ? $"招行金价 {gold.Price:0.00}（{gold.UpDown:+0.00;-0.00}）" : "招行金价";
-            goldItem.IsEnabled = goldPanelItem.IsEnabled = libraryItem.IsEnabled = !PuppetActive;
+            goldItem.IsEnabled = goldPanelItem.IsEnabled = libraryItem.IsEnabled = deepSeekItem.IsEnabled = !PuppetActive;
             topmostItem.Icon = Icon(TopmostGlyph());
             crawlItem.IsEnabled = !PuppetActive;
             focusItem.Header = FocusActive ? $"结束专注（还剩 {FocusMinutesLeft} 分钟）" : $"专注 {preferences.FocusMinutes} 分钟";

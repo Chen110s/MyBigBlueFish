@@ -56,6 +56,7 @@ public partial class MainWindow
         if (now < chatErrorUntil) return ErrorIntent;
         if (loadingIndicator?.Visibility == Visibility.Visible) return ThinkIntent;
         if (chatWindow != null && now < chatTypingUntil) return ListenIntent;
+        if (deepSeekWindow?.IsActive == true && CompanionNative.IdleSeconds < 2) return ListenIntent; // you are busy in DeepSeek 网页版
         return null;
     }
 

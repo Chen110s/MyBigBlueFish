@@ -177,12 +177,13 @@ public partial class MainWindow
             if (reminder != null) { ChatReply(message, reminder, "点击回应-元气挥手"); return; }
             if (Regex.IsMatch(message, "^(好了|算了)?(结束|停止|不)(专注|番茄钟?)"))
             {
-                if (FocusActive) StopFocus(false); else ChatReply(message, "现在没有在专注哦～想开始的话就说「开始专注」吧！");
+                if (FocusActive) { StopFocus(false); LogChat(message, "好哒，专注先到这里～辛苦啦！", "鱼鱼"); }
+                else ChatReply(message, "现在没有在专注哦～想开始的话就说「开始专注」吧！");
                 return;
             }
             if (Regex.IsMatch(message, "^(开始|我要|帮我|来)?(一个|个)?(专注|番茄钟?)"))
             {
-                if (!FocusActive) StartFocus();
+                if (!FocusActive) { StartFocus(); LogChat(message, $"好！鱼鱼陪{bond.Address}专注 {preferences.FocusMinutes} 分钟，不吵你～加油！", "鱼鱼"); }
                 return;
             }
             if (TryGoldChat(message)) return;
@@ -224,6 +225,7 @@ public partial class MainWindow
                 return;
             }
             if (version == speechRequestVersion) FinishCompanionPartial(reply);
+            LogChat(message, reply, "本地模型");
             chatSession.Add(new CompanionBrain.ChatMessage("user", message));
             chatSession.Add(new CompanionBrain.ChatMessage("assistant", reply));
             if (chatSession.Count > 12) chatSession.RemoveRange(0, chatSession.Count - 12);
@@ -242,6 +244,7 @@ public partial class MainWindow
     private void ChatReply(string message, string reply, string? animation = null, bool remember = true)
     {
         Say(reply, animation);
+        LogChat(message, reply, "鱼鱼");
         chatSession.Add(new CompanionBrain.ChatMessage("user", message));
         chatSession.Add(new CompanionBrain.ChatMessage("assistant", reply));
         if (chatSession.Count > 12) chatSession.RemoveRange(0, chatSession.Count - 12);

@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.15`（构建时传入 `-p:InformationalVersion=1.0.5-companion.15`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.16`（构建时传入 `-p:InformationalVersion=1.0.5-companion.16`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -160,17 +160,24 @@
 - **优先级**：你拖她、点她（2.5 秒内）、她在跑 / 爬 / 甩出 / 模仿三角洲、Agent 动作和动作库预览都不会被打断；聊天状态和规则按优先级抢占（倾听 30、思考 40、出错 60，规则默认 50）。
 - **新增的 4 个动作素材**：「预备姿势奔跑」「变成球」「侧耳倾听」「原地挥手打招呼」取自 dsh-whale-pet（提交 b61b445），由构建脚本从 `edge-crawl\clips` 复制到程序的 `assets\fish`。dsh-whale-pet 的 MIT 许可只覆盖代码，动画素材按其上游 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 的条款（允许开源使用、禁止商用）和形象的 CC BY-NC-SA 4.0 使用，所以只在本机使用、没有放进本仓库；说明见 `assets\fish\dsh-whale-pet-LICENSE.txt`。没有这些文件时，跑动用螃蟹走路、倾听用东张西望、挥手用元气挥手代替，甩出时不变球。
 
-## 十二、构建
+## 十二、DeepSeek 网页版与聊天记录
+
+- **DeepSeek 网页版**：右键「DeepSeek 网页版…」（或 设置 → 互动与关怀 → 聊天与记忆 →「打开 DeepSeek 网页版…」）用 Microsoft Edge WebView2 打开官方网页版 chat.deepseek.com。你自己登录、像在浏览器里一样免费聊；登录信息保存在 `data\webview2`。窗口上方有「保存这次对话」「打开保存文件夹」「刷新」「在浏览器中打开」。弹出的链接：DeepSeek 自己的页面在同一窗口打开，其他网站交给默认浏览器。
+- **不做自动对接**：DeepSeek 用户协议（3.5、5.1 条）不允许用机器人、自动程序抓取或镜像网页版内容，也不允许逆向，所以鱼鱼不会替你在网页里发消息，也不会在后台读取页面；只有你点「保存这次对话」时，才读一次当前页面上的对话（优先按消息分成「你」和「DeepSeek」，认不出时保存整块对话区的文字），存成 `DeepSeek-日期时间-标题.md`。你在网页版窗口里操作时，鱼鱼会在旁边侧耳倾听（只看有没有键盘鼠标操作，不看内容）。
+- **聊天记录**：鱼鱼聊天框里的每一轮（你说的话和她的回答，不管来自本地模型还是她自己的功能）追加到 `鱼鱼聊天-yyyy-MM-dd.md`，可在设置里关闭。保存位置默认 `data\chats`，可「选择文件夹…」改成已有的文件夹；那个文件夹不在了就暂时存回默认位置。
+- **组件**：NuGet 包 Microsoft.Web.WebView2 1.0.4258.31（BSD 风格许可）；`Microsoft.Web.WebView2.*.dll` 和 `WebView2Loader.dll` 由构建脚本复制到程序目录，程序在打开网页版窗口时才加载它们。没有 WebView2 运行时的电脑会提示下载（Windows 11 自带）。
+
+## 十三、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.15
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.16
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
-## 十三、改动的文件
+## 十四、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -201,6 +208,7 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionBehaviour.cs` | 活跃程度、聊天状态感知、动作优先级仲裁、设置「互动手感与动作」 |
 | `CompanionTriggerRules.cs` | 触发规则：事件、条件匹配、保存、编辑窗口 |
 | `CompanionActionLibrary.cs` | 动作库：额外动作、动作池调整、分类浏览与预览 |
+| `CompanionDeepSeekWeb.cs` | DeepSeek 网页版窗口（WebView2）、保存这次对话、聊天记录与保存文件夹设置 |
 | `CompanionCareSettings.cs` | 设置页「互动与关怀」 |
 
-修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式；退出保障失败不再中止播放，解码失败带退出码）、`CompanionJob.cs`（记录作业对象被拒绝时的 Windows 错误码）；另外在关怀、聊天、提醒、游戏、三角洲、金价等文件里加了触发规则的事件；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
+修改：`CompanionAnimations.cs`、`CompanionWindow.cs`、`CompanionSettings.cs`、`CompanionMenus.cs`、`CompanionPreferences.cs`、`CompanionMcp.cs`、`CompanionBrain.cs`（改为 partial）、`CompanionScreenCapture.cs`（新增按屏幕显示截取游戏画面，遮住鱼鱼自己的窗口）、`CompanionEdgeLayout.cs`（对话气泡跟随置顶状态）、`CompanionVideoPlayer.cs`（形象包素材缩放到 640×360、支持更多格式；退出保障失败不再中止播放，解码失败带退出码）、`CompanionJob.cs`（记录作业对象被拒绝时的 Windows 错误码）；另外在关怀、聊天、提醒、游戏、三角洲、金价等文件里加了触发规则的事件；`BigBlueFish.Windows.csproj` 和三个 `packages*.lock.json`（加入 Microsoft.Web.WebView2）；以及若干测试夹具（关闭爬行、更新菜单预期，保证原有自动化测试行为不变）。
