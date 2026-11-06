@@ -23,6 +23,16 @@ internal sealed class CompanionBondState
     public int Pokes { get; set; }
     public int Focus { get; set; }
     public double GainedToday { get; set; }
+    // Feeding and play: how full and how lively she is (0–100, worked out from the time they were last set).
+    public double Fullness { get; set; } = 60;
+    public DateTime FullnessUtc { get; set; } = DateTime.UtcNow;
+    public double Energy { get; set; } = 80;
+    public DateTime EnergyUtc { get; set; } = DateTime.UtcNow;
+    public int Plays { get; set; }
+    public int RpsWins { get; set; }   // rock-paper-scissors today, from her side
+    public int RpsLosses { get; set; }
+    public System.Collections.Generic.Dictionary<string, int> FoodToday { get; set; } = new();
+    public string? MealAskKey { get; set; } // the meal she last asked to be fed for, e.g. 2026-11-06-1
 
     internal const string FileName = "bond.json";
     internal const double DailyGainCap = 15;
@@ -38,6 +48,9 @@ internal sealed class CompanionBondState
                 {
                     state.Affection = double.IsFinite(state.Affection) ? Math.Clamp(state.Affection, 0, 100) : 30;
                     if (state.Nickname is { Length: > 12 }) state.Nickname = state.Nickname[..12];
+                    state.Fullness = double.IsFinite(state.Fullness) ? Math.Clamp(state.Fullness, 0, 100) : 60;
+                    state.Energy = double.IsFinite(state.Energy) ? Math.Clamp(state.Energy, 0, 100) : 80;
+                    state.FoodToday ??= new();
                     return state;
                 }
             }
@@ -62,7 +75,8 @@ internal sealed class CompanionBondState
         var date = local.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         if (StatsDate == date) return;
         StatsDate = date;
-        Pats = Feeds = Chats = Pokes = Focus = 0;
+        Pats = Feeds = Chats = Pokes = Focus = Plays = RpsWins = RpsLosses = 0;
+        FoodToday = new();
         GainedToday = 0;
     }
 
@@ -151,7 +165,10 @@ public partial class MainWindow
             var local = DateTime.Now;
             if (moodOverride != null && now < moodUntil) return moodOverride;
             if (local.Hour >= 23 || local.Hour < 6) return "困倦";
-            if (NearMeal(local) && (now - bond.LastFedUtc).TotalHours > 4) return "有点饿";
+            double full = Fullness();
+            if (full < 15) return "饿扁了";
+            if (full < 35 || NearMeal(local) && (now - bond.LastFedUtc).TotalHours > 4 && full < 60) return "有点饿";
+            if (Energy() < 20) return "玩累了";
             if ((now - bond.LastInteractionUtc).TotalHours > 3) return "有点寂寞";
             return bond.Affection >= 60 ? "愉快" : "平静";
         }

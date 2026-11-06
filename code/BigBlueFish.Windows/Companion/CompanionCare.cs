@@ -45,7 +45,7 @@ public partial class MainWindow
     private Window? petPanel;
 
     // Features that should not run while she is busy with the owner.
-    private bool SpeechPaused => FocusActive || GameActive || chatWindow != null;
+    private bool SpeechPaused => FocusActive || GameActive || chatWindow != null || SeekActive;
     private bool CrawlBlocked => FocusActive || (GameActive && preferences.GameCompanion) || chatWindow != null;
     private bool CanChatter => companionReady && IsVisible && !hiddenByUser && !fullscreenHidden && !PuppetActive && !dragging
         && !exitAnimation && !FocusActive && chatWindow == null && companionSettings == null && modelInstaller == null;
@@ -149,6 +149,8 @@ public partial class MainWindow
         UpdatePresence(now, local, idle, dt);
         UpdateHealth(dt, idle);
         RuleTick(local); // 触发规则: 整点 and switching programs
+        FeedingTick(now, local, idle); // meal times, sneaking a snack
+        PlayTick(now, local, idle);    // asking you to play
     }
 
     // ---------------------------------------------------------------- presence
@@ -442,55 +444,7 @@ public partial class MainWindow
         ShowCompanionNotice(Pick(bond.Affection < 40 ? ClickLinesLow : ClickLinesHigh), true);
     }
 
-    // ---------------------------------------------------------------- snacks
-    private static readonly (string Name, string Animation, double Affection, string[] Lines)[] Snacks =
-    [
-        ("大白饭", "吃白饭", 3, new[] { "哇！是香喷喷的大白饭！鱼鱼最最最喜欢了！", "大白饭！主人最懂鱼鱼了～开动啦！" }),
-        ("小鱼干", "大口吃零食", 2, new[] { "小鱼干！咔嚓咔嚓，好香～", "嘿嘿，谢谢主人的小鱼干～" }),
-        ("冰淇淋", "吃冰淇淋融化", 2, new[] { "冰淇淋！凉凉甜甜的……啊要化了要化了！", "哇～冰淇淋！主人也来一口嘛" }),
-        ("糖葫芦", "吃糖葫芦", 2, new[] { "糖葫芦！酸酸甜甜的，鱼鱼好开心～", "一颗、两颗……嘿嘿，舍不得吃完" }),
-        ("西瓜", "吃西瓜", 2, new[] { "大西瓜！咔嚓～好甜好甜！", "西瓜籽要吐掉哦……噗～" }),
-        ("饺子", "吃饺子", 2, new[] { "饺子！热乎乎的，主人真好～", "一口一个，鱼鱼吃得好幸福" }),
-    ];
-
-    private void Feed(int index)
-    {
-        if (!companionReady || exitAnimation || PuppetActive || index < 0 || index >= Snacks.Length) return;
-        bond.RollDay(DateTime.Now);
-        var snack = Snacks[index];
-        if (bond.Feeds >= 6)
-        {
-            Say("唔……鱼鱼已经吃得圆滚滚的啦，吃不下了……明天再喂好不好～", "哈欠连天");
-            return;
-        }
-        bond.Feeds++;
-        bond.LastFedUtc = DateTime.UtcNow;
-        NoteInteraction();
-        AddAffection(snack.Affection);
-        SetMood("满足", TimeSpan.FromMinutes(30));
-        string snackLine = Pick(snack.Lines);
-        Say(snackLine, snack.Animation);
-        PetEvent("feed", snack.Name, said: snackLine, ownReaction: true);
-    }
-
-    private void ShowSnackPanel()
-    {
-        var wrap = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-        for (int i = 0; i < Snacks.Length; i++)
-        {
-            int index = i;
-            var button = BigBlueFish.Deployment.ModernUI.Button(Snacks[i].Name, () => { petPanel?.Close(); Feed(index); });
-            button.Margin = new Thickness(0, 0, 8, 8);
-            button.MinWidth = 72;
-            wrap.Children.Add(button);
-        }
-        var body = new StackPanel();
-        body.Children.Add(new TextBlock { Text = $"今天已经喂了 {bond.Feeds}/6 次", Foreground = Brushes.SlateGray, FontSize = 12, Margin = new Thickness(0, 0, 0, 6) });
-        body.Children.Add(wrap);
-        ShowPetPanel("给鱼鱼喂点什么呢？", body, 300, true);
-    }
-
-    // ---------------------------------------------------------------- small panels next to her
+    // ---------------------------------------------------------------- panels (feeding lives in CompanionFeeding.cs)
     private void ShowPetPanel(string title, UIElement body, double width, bool closeOnDeactivate)
     {
         petPanel?.Close();

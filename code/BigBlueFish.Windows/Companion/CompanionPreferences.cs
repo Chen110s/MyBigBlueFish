@@ -111,6 +111,10 @@ internal sealed class CompanionPreferences
     public bool ClickToMove { get; set; } = true;
     public int ActivityLevel { get; set; } = 1; // 0 安静 · 1 均衡 · 2 活泼
     public bool ChatSensing { get; set; } = true;
+    // Feeding and play: she asks for food at meal times, sneaks a snack when starving, and invites you to play.
+    public bool MealRequests { get; set; } = true;
+    public bool Sneaking { get; set; } = true;
+    public bool PlayInvites { get; set; } = true;
     // 聊天记录: a copy of every chat round (and of DeepSeek 网页版 conversations the owner saves); "" = data\chats.
     public bool ChatLogEnabled { get; set; } = true;
     public string ChatLogFolder { get; set; } = "";

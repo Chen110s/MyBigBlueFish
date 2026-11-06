@@ -167,7 +167,8 @@ public partial class MainWindow
     private void ClickAnimation()
     {
         if (PuppetActive || !companionReady || exitAnimation) return;
-        if (EdgeClick()) return; // peeking from an edge: come back
+        if (EdgeClick()) return; // peeking from an edge: come back (or found in 捉迷藏)
+        if (SneakCaught()) return; // caught sneaking a snack
         CancelMovement();
         StopTargetRun();
         Pop();

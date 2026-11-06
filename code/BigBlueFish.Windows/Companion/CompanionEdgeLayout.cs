@@ -180,7 +180,20 @@ public static class CompanionEdgeLayout
                 // WPF rounds the scaled arrange width; reserve two base DIP while
                 // measuring so a wrap at that boundary cannot add an unmeasured line.
                 measuringText.Measure(new System.Windows.Size(Math.Max(1, bubbleWidth - horizontal - 2), double.PositiveInfinity));
-                double bubbleHeight = Math.Min(Math.Max(1.0, (area.Height - 16.0) / scale), Math.Max(22, measuringText.DesiredSize.Height) + vertical);
+                double textHeight = measuringText.DesiredSize.Height;
+                // Buttons under the text (an invitation to play, a meal request …) widen and lengthen the bubble.
+                var actions = ((BigBlueFish.Windows.MainWindow)pet).CompanionBubbleActionsSize(Math.Max(1, maximumWidth - horizontal));
+                if (actions.Height > 0)
+                {
+                    double wider = Math.Min(maximumWidth, Math.Max(bubbleWidth, actions.Width + horizontal));
+                    if (wider > bubbleWidth)
+                    {
+                        bubbleWidth = wider;
+                        measuringText.Measure(new System.Windows.Size(Math.Max(1, bubbleWidth - horizontal - 2), double.PositiveInfinity));
+                        textHeight = measuringText.DesiredSize.Height;
+                    }
+                }
+                double bubbleHeight = Math.Min(Math.Max(1.0, (area.Height - 16.0) / scale), Math.Max(22, textHeight) + actions.Height + vertical);
                 bubbleWidth *= scale;
                 bubbleHeight *= scale;
                 double left = Limit(pet.Left + petBounds.Left + petBounds.Width / 2.0 - bubbleWidth / 2.0, area.Left + 8.0, area.Right - bubbleWidth - 8.0);

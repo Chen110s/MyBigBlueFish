@@ -24,7 +24,9 @@
 - **沿屏幕四周爬行**：鱼鱼用「螃蟹走路」沿屏幕可用区域四周横着爬——底边站立、左右贴墙、顶边倒挂，拐角处顺势转身。可选关闭 / 偶尔 / 经常 / 一直爬（巡游），速度慢 / 中 / 快；点她会停下回应，拖走就停止。
 - **双击聊天**：双击鱼鱼弹出输入框，内置本地模型以鱼鱼的口吻多轮对话。
 - **会淡忘的记忆**：聊过的内容保存在本机，并像人一样慢慢淡忘——重要的事记得久、越常提起越牢；久远的只剩模糊印象，细节会缺失、时间会记错，最后彻底忘掉。说「叫我××」她就会这样称呼你。
-- **摸头 / 戳戳 / 喂零食**：鼠标在她头上来回轻划就是摸头；连戳会傲娇生气；右键可以喂六种零食。
+- **摸头 / 戳戳**：鼠标在她头上来回轻划就是摸头；连戳会傲娇生气。
+- **喂食**：右键「喂食…」有主食、大餐、零食水果和节日美食二十种，每种都配她自己的吃饭动作；她有饱腹度（每小时下降），饭点饿了会来要饭，吃撑了会拒绝；有最爱的口味（♥），同一样吃多了会腻；节日当天有应景美食；饿坏了又没人喂会偷吃零食，点她能抓个正着。食物还可以直接从面板拖到她身上喂。
+- **陪她玩**：右键「陪鱼鱼玩…」——十几种玩具（魔方、陀螺、毽子、秋千、风筝、五子棋、撸猫……冬天还能堆雪人）；看她表演魔术、跳舞、拉小提琴、放烟花，演完可以鼓掌或喊「再来一个」；猜拳和捉迷藏（她藏到屏幕某条边外，把鼠标移到边上找她）。玩耍消耗精力、随时间恢复；你空闲时她偶尔会拿着玩具来邀请你。
 - **好感度与心情**：互动和陪伴时长会增加好感，好感越高她越黏人；心情随时间、饭点和互动变化。离开电脑回来时她会迎接你，很多天没见会说想你。
 - **关怀提醒**：久坐、喝水、护眼提醒（按实际使用时间计算）；每天的早安、深夜催睡和晚安。
 - **番茄钟**：右键「专注」，专注期间她安静陪伴，结束时叫你休息。
@@ -54,10 +56,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.16
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.17
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.16` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.17` 即为增强版。
 
 应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
 
@@ -245,7 +247,9 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Edge crawling**: she crab-walks around the usable area of the screen — standing on the bottom edge, clinging to the left and right walls, hanging upside down along the top, and turning at each corner. Modes: off / sometimes / often / always (patrol); speed: slow / medium / fast. Clicking makes her stop and react; dragging her stops the crawl.
 - **Double-click chat**: double-click her to open a small input box and chat with her through the local model, in her own voice, over several turns.
 - **Memory that fades**: conversations are stored locally and fade like human memory — important things last longer and get stronger each time they come up; old memories become vague, lose details, get the time wrong, and are eventually forgotten. Tell her "叫我××" ("call me ××") and she will use that name.
-- **Pat, poke and feed**: moving the mouse back and forth over her head pats her; poking her repeatedly makes her grumpy; the right-click menu lets you feed her six kinds of snacks.
+- **Pat and poke**: moving the mouse back and forth over her head pats her; poking her repeatedly makes her grumpy.
+- **Feeding**: right-click "喂食…" for twenty foods (meals, feasts, snacks and fruit, festival food), each with her own eating animation. She has a fullness meter that drops over time: hungry at mealtimes she asks for food, stuffed she refuses; she has favourites (♥) and gets bored of the same dish; festival food is marked on its day; starving and ignored she sneaks a snack, and a click catches her at it. You can also drag a food from the panel onto her.
+- **Play**: right-click "陪鱼鱼玩…" for a dozen toys (Rubik's cube, top, shuttlecock, swing, kite, gomoku, petting a cat … a snowman in winter), shows (magic, dances, violin, fireworks; applaud or ask for an encore afterwards), rock-paper-scissors and hide-and-seek (she hides beyond a screen edge; move the mouse to that edge to find her). Playing costs energy, which comes back over time, and when you seem free she sometimes invites you to play.
 - **Affection and mood**: interactions and time spent together raise affection, and the higher it is the more affectionate she gets; her mood changes with the time of day, mealtimes and your interactions. She welcomes you back when you return to the computer and tells you she missed you after a long absence.
 - **Care reminders**: reminders to stand up, drink water and rest your eyes (based on actual computer use); good morning, late-night "go to bed" nudges and good night.
 - **Focus timer**: right-click "专注" (Focus) for a pomodoro; she keeps you quiet company and tells you to take a break when it ends.
@@ -275,10 +279,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.16
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.17
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.16` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.17` when the companion edition is running.
 
 Updating to a newer official version through the in-app update replaces the companion edition's files.
 

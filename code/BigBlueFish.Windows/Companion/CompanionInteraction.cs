@@ -209,7 +209,8 @@ public partial class MainWindow
     private void OnDragStarted()
     {
         StopTargetRun();
-        if (edgeHide != null) edgeHide = null; // pulled back from the edge
+        if (edgeHide is { Seek: true }) SeekFound(true); // 捉迷藏: dragged out of her hiding place
+        else if (edgeHide != null) edgeHide = null; // pulled back from the edge
         tiltTarget = 0;
     }
 
@@ -363,6 +364,8 @@ public partial class MainWindow
         public double Along;      // Top (left/right edges) or Left (top/bottom edges)
         public double Reveal;     // 0 hidden … 1 peeking
         public DateTime AwayAt = DateTime.MaxValue;
+        public bool Seek;         // 捉迷藏: hiding on purpose, to be found
+        public DateTime SeekStartUtc, HintUntil;
     }
     private EdgeHideState? edgeHide;
     internal bool EdgeHidden => edgeHide != null;
@@ -433,9 +436,9 @@ public partial class MainWindow
         };
         if (near || bubble.Visibility == Visibility.Visible) e.AwayAt = DateTime.MaxValue;
         else if (e.AwayAt == DateTime.MaxValue) e.AwayAt = now.AddSeconds(.6);
-        double target = now < e.AwayAt ? 1 : 0;
+        double target = now < e.AwayAt ? 1 : e.Seek && now < e.HintUntil ? .35 : 0; // 捉迷藏: a little peek as a hint
         if (Math.Abs(target - e.Reveal) < .001) return;
-        e.Reveal = target > e.Reveal ? Math.Min(1, e.Reveal + .2) : Math.Max(0, e.Reveal - .2);
+        e.Reveal = target > e.Reveal ? Math.Min(target, e.Reveal + .2) : Math.Max(target, e.Reveal - .2);
         PlaceAtEdge();
     }
 
@@ -443,6 +446,7 @@ public partial class MainWindow
     private bool EdgeClick()
     {
         if (edgeHide == null) return false;
+        if (edgeHide.Seek) { SeekFound(false); return true; } // 捉迷藏: found her
         edgeHide = null;
         ClampCompanion();
         anchor = new Point(Left, Top);

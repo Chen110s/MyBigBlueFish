@@ -99,6 +99,7 @@ public partial class MainWindow
         if (animationPhase == "Startup" && !ownReaction) return false;
         if (animationPhase is "Click" or "Interact" && !ownReaction && (DateTime.UtcNow - animationStartedUtc).TotalSeconds < 2.5) return false;
         if (animationPhase is "Intent" or "Rule" && priority <= playingPriority) return false;
+        if (animationPhase is "Toy" or "Perform" or "Rps" && !ownReaction) return false; // playing with the owner
         return true;
     }
 
@@ -113,6 +114,7 @@ public partial class MainWindow
     private bool BehaviourAnimationFinished()
     {
         if (TargetAnimationFinished()) return true;
+        if (PlayAnimationFinished()) return true; // after a show: applause or an encore
         switch (animationPhase)
         {
             case "Fling":
