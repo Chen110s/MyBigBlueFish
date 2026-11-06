@@ -43,7 +43,7 @@ public partial class MainWindow
             if (availableUpdate != null)
             {
                 if (interactive) OpenUpdateWindow();
-                else notifyIcon.ShowBalloonTip(8000, "蓝色大肥鱼有新版本啦", "点击下载并更新到 " + availableUpdate.Version, System.Windows.Forms.ToolTipIcon.Info);
+                else notifyIcon.ShowBalloonTip(8000, "蓝色大肥鱼有新版本啦", "官方版 " + availableUpdate.Version + " 已发布（更新会覆盖陪伴增强包，点开看看）", System.Windows.Forms.ToolTipIcon.Info);
             }
             else if (interactive) ModernUI.Choice(companionSettings, "检查更新", updateStatus, "确定");
         }
@@ -59,6 +59,12 @@ public partial class MainWindow
     {
         if (availableUpdate == null || companionClosed || exitAnimation) return;
         if (updateWindow != null) { updateWindow.Activate(); return; }
+        // 陪伴增强包: the official installer replaces the program files and, with them, every companion feature;
+        // the official version also drops the companion settings from preferences.json. Ask before going on.
+        if (ModernUI.Choice(companionSettings, "更新会覆盖陪伴增强包",
+                $"官方新版本 {availableUpdate.Version} 会替换程序文件：爬行、喂食与陪玩、金价、三角洲、形象包切换、DeepSeek 网页版等增强功能都会消失，"
+                + "这些功能的设置也会被清掉（好感度、聊天记忆、提醒、金价记录不受影响）。\n\n建议先不更新，等陪伴增强包适配新版本。仍要更新吗？",
+                "先不更新", "仍要更新") != 1) return;
         var dialog = updateWindow = new UpdateWindow(availableUpdate, AppContext.BaseDirectory, Environment.CurrentDirectory);
         if (companionSettings?.IsVisible == true) dialog.Owner = companionSettings;
         dialog.Closed += (_, _) => {

@@ -61,7 +61,7 @@
 
 3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.17` 即为增强版。
 
-应用内「检查更新」升级到官方新版本时，会覆盖增强版的程序文件。
+增强版基于官方 v1.0.5。升级到官方新版本（应用内「检查更新」或重新运行官方安装器）会覆盖增强版的程序文件，官方版还会清掉增强功能的设置；所以增强版在打开更新窗口前会先提醒你。
 
 <p align="center">
   <img src="docs/images/bigbluefish-maid-bow.gif" width="32%" alt="女仆屈膝礼仪" />
@@ -284,7 +284,7 @@ There are no separate installers for this repository. Recommended steps:
 
 3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.17` when the companion edition is running.
 
-Updating to a newer official version through the in-app update replaces the companion edition's files.
+The companion edition is built on official v1.0.5. Updating to a newer official version (in-app update or running a newer official installer) replaces its files, and the official version also drops the companion settings, so the companion edition asks before it opens the update window.
 
 <p align="center">
   <img src="docs/images/bigbluefish-maid-bow.gif" width="32%" alt="Curtsy greeting" />

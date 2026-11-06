@@ -199,6 +199,8 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
+**官方更新会覆盖增强版**：用应用内「检查更新」或官方安装器升级到 v1.0.5 以后的官方版本时，程序文件会被替换、增强功能消失，官方版保存设置时还会去掉增强功能的设置项（好感度、聊天记忆、提醒、金价记录等数据文件不受影响）。所以增强版打开更新窗口前会先弹出提醒，托盘的新版本通知也会注明。已经被覆盖时，重新安装官方 v1.0.5 再编译增强版即可恢复。
+
 ## 十五、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
