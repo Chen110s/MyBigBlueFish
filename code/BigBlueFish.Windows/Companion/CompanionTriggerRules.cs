@@ -46,6 +46,7 @@ internal static class CompanionTriggerRules
         ("chat.message", "聊天时你说的话", TriggerCondition.Text, "包含的文字（可用 | 分隔多个；留空 = 任意一句）"),
         ("chat.reply", "鱼鱼回答完", TriggerCondition.Text, "回答包含的文字（留空 = 任意）"),
         ("chat.error", "聊天出错 / 鱼鱼走神", TriggerCondition.None, ""),
+        ("chat.idle", "聊天中主人 10 分钟没说话", TriggerCondition.None, ""),
         ("reminder", "提醒事项到点", TriggerCondition.Text, "提醒内容包含（留空 = 任意）"),
         ("care", "关怀提醒", TriggerCondition.Text, "类型：久坐 / 喝水 / 护眼 / 睡觉（留空 = 任意）"),
         ("focus.start", "开始专注", TriggerCondition.None, ""),

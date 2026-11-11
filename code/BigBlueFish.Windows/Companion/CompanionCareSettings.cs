@@ -61,7 +61,8 @@ public partial class MainWindow
 
         // ---- chat & memory
         Section("聊天与记忆");
-        Toggle("双击鱼鱼可以和她聊天（使用本地模型，内容不上传）", preferences.ChatEnabled, v => { preferences.ChatEnabled = v; if (!v) chatWindow?.Close(); });
+        Toggle("双击鱼鱼可以和她聊天（联网时用 DeepSeek，连不上用本地模型；本地模型的内容不上传）", preferences.ChatEnabled, v => { preferences.ChatEnabled = v; if (!v) chatWindow?.Close(); });
+        AddNetChatSettings(page, Note); // 联网聊天: DeepSeek API key, model, persona
         Toggle("记住聊过的内容（只保存在本机，会像人一样慢慢淡忘、记混）", preferences.MemoryEnabled, v => preferences.MemoryEnabled = v);
         var memoryInfo = new TextBlock { FontSize = 11, Foreground = Brushes.SlateGray, Margin = new Thickness(0, 0, 0, 6),
             Text = $"鱼鱼现在记得 {memory?.Count ?? 0} 段对话的印象。聊得越重要、被提起得越多的事，记得越久。" };

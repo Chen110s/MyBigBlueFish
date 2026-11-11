@@ -151,6 +151,7 @@ public partial class MainWindow
         RuleTick(local); // 触发规则: 整点 and switching programs
         FeedingTick(now, local, idle); // meal times, sneaking a snack
         PlayTick(now, local, idle);    // asking you to play
+        ChatSilenceTick(now);          // 「主人还在吗……」 after ten quiet minutes in a chat
     }
 
     // ---------------------------------------------------------------- presence

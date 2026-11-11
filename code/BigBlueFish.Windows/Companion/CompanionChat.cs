@@ -68,7 +68,7 @@ public partial class MainWindow
         var editor = new Grid();
         editor.Children.Add(text);
         editor.Children.Add(placeholder);
-        var status = new TextBlock { Text = "Enter 发送 · Esc 收起", Foreground = Brushes.SlateGray, FontSize = 11,
+        var status = new TextBlock { Text = ChatIdleStatus(), Foreground = Brushes.SlateGray, FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 8, 0) };
         var content = new StackPanel();
         content.Children.Add(editor);
@@ -188,6 +188,12 @@ public partial class MainWindow
             }
             if (TryGoldChat(message)) return;
             if (TryDeltaForceChat(message)) return;
+            // 联网聊天: DeepSeek while it can be reached; otherwise (or if nothing came back) the local model below.
+            if (NetChatReady)
+            {
+                if (await NetChatAsync(message, status) == NetChatOutcome.Answered) return;
+                status.Text = "DeepSeek 暂时连不上，换本地模型……";
+            }
             if (!preferences.ModelEnabled || !brain.ModelAvailable)
             {
                 ChatReply(message, CannedChatReply(message));
@@ -236,7 +242,8 @@ public partial class MainWindow
         {
             chatBusy = false;
             chatLastUtc = DateTime.UtcNow;
-            status.Text = "Enter 发送 · Esc 收起";
+            chatAwaitingOwner = true; // TIMEOUT_SIGNAL: ten quiet minutes from now she asks if you are still there
+            status.Text = ChatIdleStatus();
         }
     }
 
@@ -302,6 +309,7 @@ public partial class MainWindow
         if (Regex.IsMatch(message, "喜欢你|爱你")) return "鱼、鱼鱼也最喜欢" + bond.Address + "了！嘿嘿～";
         if (Regex.IsMatch(message, "累|困|难过|伤心")) return "抱抱" + bond.Address + "！辛苦啦，先休息一下嘛～";
         if (Regex.IsMatch(message, "饿|吃")) return "鱼鱼也饿了……想吃大白饭！右键可以喂鱼鱼零食哦～";
-        return "鱼鱼的小脑袋（本地模型）还没开启呢……在设置→模型与供电里启用后，鱼鱼就能好好陪你聊天啦～";
+        if (NetChatConfigured) return "DeepSeek 暂时连不上，鱼鱼的小脑袋（本地模型）也没开启……等网络好了再聊，或者在设置→模型与供电里启用本地模型～";
+        return "鱼鱼的小脑袋（本地模型）还没开启呢……在设置→模型与供电里启用后，或者在 设置 → 互动与关怀 填好 DeepSeek API Key，鱼鱼就能好好陪你聊天啦～";
     }
 }
