@@ -192,7 +192,7 @@ public partial class MainWindow
             if (NetChatReady)
             {
                 if (await NetChatAsync(message, status) == NetChatOutcome.Answered) return;
-                status.Text = "DeepSeek 暂时连不上，换本地模型……";
+                status.Text = "联网暂时用不了，换本地模型……";
             }
             if (!preferences.ModelEnabled || !brain.ModelAvailable)
             {
@@ -309,7 +309,7 @@ public partial class MainWindow
         if (Regex.IsMatch(message, "喜欢你|爱你")) return "鱼、鱼鱼也最喜欢" + bond.Address + "了！嘿嘿～";
         if (Regex.IsMatch(message, "累|困|难过|伤心")) return "抱抱" + bond.Address + "！辛苦啦，先休息一下嘛～";
         if (Regex.IsMatch(message, "饿|吃")) return "鱼鱼也饿了……想吃大白饭！右键可以喂鱼鱼零食哦～";
-        if (NetChatConfigured) return "DeepSeek 暂时连不上，鱼鱼的小脑袋（本地模型）也没开启……等网络好了再聊，或者在设置→模型与供电里启用本地模型～";
-        return "鱼鱼的小脑袋（本地模型）还没开启呢……在设置→模型与供电里启用后，或者在 设置 → 互动与关怀 填好 DeepSeek API Key，鱼鱼就能好好陪你聊天啦～";
+        if (NetChatConfigured) return "联网聊天暂时用不了，鱼鱼的小脑袋（本地模型）也没开启……等一会儿再聊，或者在设置→模型与供电里启用本地模型～";
+        return "鱼鱼的小脑袋（本地模型）还没开启呢……在设置→模型与供电里启用，或者在 设置 → 互动与关怀 → 聊天与记忆 填好联网聊天的 Key（OpenRouter 免费），鱼鱼就能好好陪你聊天啦～";
     }
 }

@@ -16,11 +16,11 @@
 ## 二、互动
 
 - **双击聊天**：双击鱼鱼弹出输入框（Enter 发送，Shift+Enter 换行，Esc 收起），多轮回答显示在气泡中。
-- **联网聊天**（设置 → 互动与关怀 → 聊天与记忆）：填入自己的 DeepSeek 开放平台 API Key（platform.deepseek.com，按用量付费）后，每句话先发给 DeepSeek（`https://api.deepseek.com/chat/completions`，默认模型 `deepseek-flash`、关闭深度思考、流式显示）；没网、10 秒内没开始回答、限流或服务器忙时，这一句改由内置本地模型回答，之后 3 分钟内都用本地模型，再自动重试；API Key 不对、余额不足或模型名不对时一直用本地模型，聊天框下方写明原因，改好后点「测试连接」恢复。聊天框下方显示现在用的是「联网 · DeepSeek」还是「本地模型」。不用网页版：DeepSeek 用户协议不允许用程序自动操作网页版。
-  - 联网时的性格默认是「鲸鱼少女」人设（PERSONA_LOAD：蓝色超能力淡水鲸鱼、尾鳍模式、只说简体中文、自称鲸鱼少女、主食米饭、软糯听话 / 勤奋体贴、听主人的、死也不承认胖、10 分钟没消息会问「主人还在吗……」），可以在设置里改或恢复默认；程序另外固定加上：她住在桌面上、回答简短口语、可用的动作库，以及底线（保持温暖健康，不涉及恋爱、亲密或性相关内容；“听主人的”只限于安全正当的事）。
+- **联网聊天**（设置 → 互动与关怀 → 聊天与记忆）：选「OpenRouter 免费模型」（默认）或「DeepSeek 官方 API（付费）」，填入对应的 Key。OpenRouter：在 openrouter.ai 注册免费账号、建一个 Key，不用充值；按顺序试 `deepseek/deepseek-v4-flash:free`、`google/gemma-4-31b-it:free`、`nvidia/nemotron-3-ultra-550b-a55b:free`（可改），哪个现在没有服务商提供或出错就跳过一阵子（2026 年 11 月时 DeepSeek 的几个免费版都没有服务商，所以实际先用 Gemma 4），免费次数每天约 50 次、每分钟 20 次（UTC 零点重置），用完当天换回本地模型；OpenRouter 隐私设置不允许免费模型时会提示去 openrouter.ai/settings/privacy 打开。DeepSeek 官方 API：`https://api.deepseek.com/chat/completions`，默认 `deepseek-flash`、关闭深度思考。每句话都流式显示；没网或 12 秒内没开始回答时，这一句改由本地模型回答，3 分钟内都用本地模型再自动重试；Key 不对、欠费时一直用本地模型并写明原因，改好后点「测试连接」恢复（测试会显示今天已用的免费次数和每个模型现在能不能用）。聊天框下方显示现在是「联网 · OpenRouter（模型）」还是「本地模型」。两家都不使用 DeepSeek 网页版：网页版的用户协议不允许用程序自动操作。
+  - 联网时的性格（两家都用）默认是「鲸鱼少女」人设（PERSONA_LOAD：蓝色超能力淡水鲸鱼、尾鳍模式、只说简体中文、自称鲸鱼少女、主食米饭、软糯听话 / 勤奋体贴、听主人的、死也不承认胖、10 分钟没消息会问「主人还在吗……」），可以在设置里改或恢复默认；程序另外固定加上：她住在桌面上、回答简短口语、可用的动作库，以及底线（保持温暖健康，不涉及恋爱、亲密或性相关内容；“听主人的”只限于安全正当的事）。
   - 动作库：回复开头的【动作：挥手 / 开心 / 害羞 / 生气 / 甩尾 / 思考 / 吃饭 / 跳舞 / 行礼 / 转圈 / 犯困 / 哼歌 / 吐泡泡 / 吓一跳 / 庆祝】会让她做对应的动作，标记不显示在气泡里。
   - 聊天框开着、主人回复后 10 分钟没再说话，她会说「主人还在吗……」并甩尾鳍（每段沉默一次；触发规则新增「聊天中主人 10 分钟没说话」）。
-  - 隐私：联网时你说的话、最近几轮对话、想起的相关记忆、称呼、好感度、饱腹精力和时间会发给 DeepSeek；API Key 用 Windows 数据保护（DPAPI）加密存在 `data\deepseek-api-key.bin`，只发给 api.deepseek.com。
+  - 隐私：联网时你说的话、最近几轮对话、想起的相关记忆、称呼、好感度、饱腹精力和时间会发给所选的服务（OpenRouter 免费模型的服务商可能会记录对话、用于改进模型）；Key 用 Windows 数据保护（DPAPI）加密存在 `data\openrouter-api-key.bin` / `data\deepseek-api-key.bin`，只发给对应服务的地址。
 - **会淡忘的记忆**（`data\memory.json`）：
   - 每段对话按重要程度记忆：名字、生日等最重要，喜好、计划、心情次之，闲聊最容易忘。
   - 记忆强度随时间按遗忘曲线衰减；被想起一次就会记得更久。
@@ -216,7 +216,7 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 |---|---|
 | `CompanionCrawl.cs` | 沿屏幕爬行：路径、旋转、巡游 / 单圈 / 停止、拐角贴边 |
 | `CompanionChat.cs` | 双击聊天窗口、对话上下文、称呼识别、聊天内的提醒与专注指令 |
-| `CompanionNetChat.cs` | 联网聊天：DeepSeek API（流式、失败自动换本地模型）、API Key 加密保存、人设与动作库、「主人还在吗……」、设置 |
+| `CompanionNetChat.cs` | 联网聊天：OpenRouter 免费模型 / DeepSeek API（流式、按顺序换模型、失败自动换本地模型）、Key 加密保存、人设与动作库、「主人还在吗……」、设置 |
 | `CompanionBrainChat.cs` | 本地模型多轮对话接口（`CompanionBrain` 的 partial） |
 | `CompanionMemory.cs` | 会淡忘的长期记忆（遗忘曲线、模糊化回忆） |
 | `CompanionBond.cs` | 好感度、心情、每日统计、称呼 |

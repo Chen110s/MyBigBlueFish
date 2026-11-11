@@ -19,17 +19,13 @@ using System.Windows.Media;
 
 namespace BigBlueFish.Windows;
 
-// 联网聊天: the chat box talks to the DeepSeek open platform API (the owner's own API key) while it can be
-// reached, and falls back to the local model when it cannot — no network, a timeout, the server busy. The key
-// is kept encrypted for this Windows user (DPAPI) in data\deepseek-api-key.bin and only sent to the API.
-// The DeepSeek web page (网页版) is never used for this: its terms forbid automated use.
+// 联网聊天: while a network model can be reached the chat box talks to it, otherwise (no network, a timeout, the
+// server busy, the free quota used up) the local model answers. Two providers: OpenRouter's free models (a free
+// account and key; DeepSeek's free model first when a provider serves it, then other free models) or the paid
+// DeepSeek open platform API. Keys are kept DPAPI-encrypted for this Windows user in the data folder and only sent
+// to that provider. The DeepSeek web page (网页版) is never used for this: its terms forbid automated use.
 public partial class MainWindow
 {
-    internal const string DeepSeekApiBase = "https://api.deepseek.com";
-    internal const string DefaultDeepSeekModel = "deepseek-flash";
-    private const string DeepSeekKeysPage = "https://platform.deepseek.com/api_keys";
-    private const string DeepSeekKeyFile = "deepseek-api-key.bin";
-
     // The persona the owner asked for; editable in the settings.
     internal const string DefaultDeepSeekPersona = """
         【PERSONA_LOAD】
@@ -67,52 +63,98 @@ public partial class MainWindow
 
     private static readonly Regex ActionTag = new(@"[【\[]\s*动作\s*[:：]\s*([^】\]\s]{1,6})\s*[】\]]");
 
-    private readonly HttpClient deepSeekWeb = new(new SocketsHttpHandler
+    // ---------------------------------------------------------------- providers
+    // OpenRouter: a free account and key, free models (":free", 50 requests a day, 20 a minute); the list is tried
+    // in order, a model with no provider serving it right now is skipped for a while.
+    // DeepSeek: the official open platform API, paid by use.
+    private sealed record NetProvider(string Id, string Title, string Short, string BaseUrl, string KeyFile, string KeysPage, string DefaultModels);
+
+    private static readonly NetProvider OpenRouterProvider = new("openrouter", "OpenRouter 免费模型（免费 Key，每天约 50 次）", "OpenRouter",
+        "https://openrouter.ai/api/v1", "openrouter-api-key.bin", "https://openrouter.ai/settings/keys",
+        "deepseek/deepseek-v4-flash:free, google/gemma-4-31b-it:free, nvidia/nemotron-3-ultra-550b-a55b:free");
+    private static readonly NetProvider DeepSeekProvider = new("deepseek", "DeepSeek 官方 API（付费 Key）", "DeepSeek",
+        "https://api.deepseek.com", "deepseek-api-key.bin", "https://platform.deepseek.com/api_keys", "deepseek-flash");
+    private static readonly NetProvider[] NetProviders = [OpenRouterProvider, DeepSeekProvider];
+
+    private NetProvider CurrentProvider => preferences.NetChatProvider == DeepSeekProvider.Id ? DeepSeekProvider : OpenRouterProvider;
+
+    private string NetChatModelText(NetProvider provider) =>
+        (provider == DeepSeekProvider ? preferences.DeepSeekModel : preferences.OpenRouterModels) is { } custom && !string.IsNullOrWhiteSpace(custom)
+            ? custom.Trim() : provider.DefaultModels;
+
+    private IReadOnlyList<string> NetChatModels(NetProvider provider) =>
+        NetChatModelText(provider).Split(new[] { ',', '，', ';', '；', '\n', '\r', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct().Take(provider == DeepSeekProvider ? 1 : 6).ToList();
+
+    private readonly HttpClient netChatWeb = new(new SocketsHttpHandler
     {
         ConnectTimeout = TimeSpan.FromSeconds(6),
         PooledConnectionLifetime = TimeSpan.FromMinutes(5),
         AutomaticDecompression = DecompressionMethods.All
     }) { Timeout = Timeout.InfiniteTimeSpan };
 
-    private DateTime netChatRetryAt = DateTime.MinValue; // after a network failure: local model until then
-    private string? netChatBlocked;                       // key / balance / model problem: off until the settings change
-    private string? cachedDeepSeekKey;
-    private bool deepSeekKeyLoaded;
+    private DateTime netChatRetryAt = DateTime.MinValue; // network down / quota used up: local model until then
+    private string? netChatRetryWhy;
+    private string? netChatBlocked;                       // key / account problem: off until the settings change
+    private string? lastNetChatModel;
+    private readonly Dictionary<string, DateTime> netModelSkipUntil = new(); // OpenRouter models that just failed
+    private readonly Dictionary<string, string?> netKeys = new();
 
     private string NetChatPersona => string.IsNullOrWhiteSpace(preferences.DeepSeekPersona) ? DefaultDeepSeekPersona : preferences.DeepSeekPersona!;
-    private string NetChatModel => string.IsNullOrWhiteSpace(preferences.DeepSeekModel) ? DefaultDeepSeekModel : preferences.DeepSeekModel!.Trim();
-    private bool NetChatConfigured => preferences.NetChatEnabled && DeepSeekKey() != null;
+    private bool NetChatConfigured => preferences.NetChatEnabled && NetKey(CurrentProvider) != null;
     private bool NetChatReady => NetChatConfigured && netChatBlocked == null && DateTime.UtcNow >= netChatRetryAt;
 
-    // ---------------------------------------------------------------- the API key (DPAPI, this Windows user only)
-    private string? DeepSeekKey()
+    private void ResetNetChatState()
     {
-        if (deepSeekKeyLoaded) return cachedDeepSeekKey;
-        deepSeekKeyLoaded = true;
-        try
-        {
-            if (File.Exists(DeepSeekKeyFile))
-                cachedDeepSeekKey = Encoding.UTF8.GetString(Dpapi.Unprotect(File.ReadAllBytes(DeepSeekKeyFile))).Trim();
-        }
-        catch (Exception ex) { LogCompanionError("DeepSeek API Key 读取失败：" + ex.Message); }
-        if (string.IsNullOrWhiteSpace(cachedDeepSeekKey)) cachedDeepSeekKey = null;
-        return cachedDeepSeekKey;
-    }
-
-    private void SaveDeepSeekKey(string? key)
-    {
-        key = key?.Trim();
-        if (string.IsNullOrEmpty(key)) { try { File.Delete(DeepSeekKeyFile); } catch { } }
-        else
-        {
-            File.WriteAllBytes(DeepSeekKeyFile + ".tmp", Dpapi.Protect(Encoding.UTF8.GetBytes(key)));
-            File.Move(DeepSeekKeyFile + ".tmp", DeepSeekKeyFile, true);
-        }
-        cachedDeepSeekKey = string.IsNullOrEmpty(key) ? null : key;
-        deepSeekKeyLoaded = true;
         netChatBlocked = null;
         netChatRetryAt = DateTime.MinValue;
+        netChatRetryWhy = null;
+        netModelSkipUntil.Clear();
     }
+
+    // ---------------------------------------------------------------- the keys (DPAPI, this Windows user only)
+    private string? NetKey(NetProvider provider)
+    {
+        if (netKeys.TryGetValue(provider.Id, out var cached)) return cached;
+        string? key = null;
+        try
+        {
+            if (File.Exists(provider.KeyFile)) key = Encoding.UTF8.GetString(Dpapi.Unprotect(File.ReadAllBytes(provider.KeyFile))).Trim();
+        }
+        catch (Exception ex) { LogCompanionError($"{provider.Short} Key 读取失败：" + ex.Message); }
+        if (string.IsNullOrWhiteSpace(key)) key = null;
+        netKeys[provider.Id] = key;
+        return key;
+    }
+
+    private void SaveNetKey(NetProvider provider, string? key)
+    {
+        key = key?.Trim();
+        if (string.IsNullOrEmpty(key)) { try { File.Delete(provider.KeyFile); } catch { } }
+        else
+        {
+            File.WriteAllBytes(provider.KeyFile + ".tmp", Dpapi.Protect(Encoding.UTF8.GetBytes(key)));
+            File.Move(provider.KeyFile + ".tmp", provider.KeyFile, true);
+        }
+        netKeys[provider.Id] = string.IsNullOrEmpty(key) ? null : key;
+        ResetNetChatState();
+    }
+
+    private HttpRequestMessage NetRequest(NetProvider provider, HttpMethod method, string path, string key)
+    {
+        var request = new HttpRequestMessage(method, provider.BaseUrl + path);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+        if (provider == OpenRouterProvider)
+        {
+            request.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/Chen110s/MyBigBlueFish");
+            request.Headers.TryAddWithoutValidation("X-Title", "BigBlueFish Desktop Pet");
+        }
+        return request;
+    }
+
+    // ---------------------------------------------------------------- one round
+    private enum NetChatOutcome { Answered, Unavailable }
+    private enum Attempt { Answered, NextModel, Stop }
 
     private static class Dpapi
     {
@@ -156,9 +198,6 @@ public partial class MainWindow
         }
     }
 
-    // ---------------------------------------------------------------- one round with DeepSeek
-    private enum NetChatOutcome { Answered, Unavailable }
-
     private IReadOnlyList<CompanionBrain.ChatMessage> BuildNetChatMessages(string message)
     {
         var system = new StringBuilder(NetChatPersona.Trim()).Append('\n').Append(NetChatRules);
@@ -192,39 +231,73 @@ public partial class MainWindow
         return CompanionBrain.CleanChat(text);
     }
 
-    // Streams DeepSeek's reply into the bubble. Unavailable: nothing usable came back (the caller asks the local model).
+    // Streams the reply into the bubble, trying the provider's models in order. Unavailable: nothing usable came back
+    // (the caller asks the local model).
     private async Task<NetChatOutcome> NetChatAsync(string message, TextBlock status)
     {
-        string? key = DeepSeekKey();
+        var provider = CurrentProvider;
+        string? key = NetKey(provider);
         if (key == null) return NetChatOutcome.Unavailable;
-        status.Text = "鲸鱼少女在想……（DeepSeek）";
+        status.Text = $"鲸鱼少女在想……（{provider.Short}）";
         SupersedeModelSpeech();
         BeginModelSpeech();
         speechRequestPending = weatherRequestPending = false;
         long version = ++speechRequestVersion;
-        var payload = new
+        var messages = BuildNetChatMessages(message).ToArray();
+        bool tried = false;
+        foreach (var model in NetChatModels(provider))
         {
-            model = NetChatModel,
-            messages = BuildNetChatMessages(message).ToArray(),
-            stream = true,
-            max_tokens = 400,
-            temperature = 1.1,
-            thinking = new { type = "disabled" } // a quick reply for the bubble, no long reasoning
-        };
+            if (netModelSkipUntil.TryGetValue(model, out var until) && DateTime.UtcNow < until) continue;
+            tried = true;
+            var (attempt, reply, action) = await NetChatAttemptAsync(provider, key, model, messages, version);
+            if (attempt == Attempt.Answered)
+            {
+                if (version == speechRequestVersion) { EndModelSpeech(); FinishCompanionPartial(reply); }
+                if (action != null && NetChatActions.TryGetValue(action, out var clip) && !dragging && TryFindRule(clip) is { } rule && ActionAllowed(50, true))
+                {
+                    CancelMovement();
+                    PlayAnimation(rule, "Interact");
+                }
+                LogChat(message, reply, $"{provider.Short} 联网（{model}）");
+                chatSession.Add(new CompanionBrain.ChatMessage("user", message));
+                chatSession.Add(new CompanionBrain.ChatMessage("assistant", reply));
+                if (chatSession.Count > 12) chatSession.RemoveRange(0, chatSession.Count - 12);
+                RememberChat(message, reply);
+                PetEvent("chat.reply", reply, said: reply);
+                lastNetChatModel = model;
+                netChatRetryAt = DateTime.MinValue;
+                netChatRetryWhy = null;
+                return NetChatOutcome.Answered;
+            }
+            if (attempt == Attempt.Stop || companionClosed) break;
+        }
+        if (version == speechRequestVersion) EndModelSpeech();
+        if (netChatBlocked == null && DateTime.UtcNow >= netChatRetryAt)
+        {
+            // every model failed (or all are resting after a failure): local model for a few minutes
+            netChatRetryAt = DateTime.UtcNow.AddMinutes(3);
+            netChatRetryWhy = tried ? "联网模型暂时都不可用" : "联网模型刚才都失败了，稍后再试";
+        }
+        return NetChatOutcome.Unavailable;
+    }
+
+    private async Task<(Attempt Attempt, string Reply, string? Action)> NetChatAttemptAsync(NetProvider provider, string key, string model,
+        CompanionBrain.ChatMessage[] messages, long version)
+    {
+        object payload = provider == DeepSeekProvider
+            ? new { model, messages, stream = true, max_tokens = 400, temperature = 1.1, thinking = new { type = "disabled" } }
+            : new { model, messages, stream = true, max_tokens = 400, temperature = 0.9, reasoning = new { effort = "none" } };
         string raw = "", shown = "";
         string? action = null;
         try
         {
-            using var headers = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            using var request = new HttpRequestMessage(HttpMethod.Post, DeepSeekApiBase + "/chat/completions") { Content = JsonContent.Create(payload) };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            using var response = await deepSeekWeb.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headers.Token);
-            headers.CancelAfter(Timeout.InfiniteTimeSpan); // the 10 s were for the answer to start; the stream has its own idle limit
+            using var headers = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+            using var request = NetRequest(provider, HttpMethod.Post, "/chat/completions", key);
+            request.Content = JsonContent.Create(payload);
+            using var response = await netChatWeb.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, headers.Token);
+            headers.CancelAfter(Timeout.InfiniteTimeSpan); // the 12 s were for the answer to start; the stream has its own idle limit
             if (!response.IsSuccessStatusCode)
-            {
-                NetChatHttpFailure((int)response.StatusCode, await SafeBody(response));
-                return Finish(NetChatOutcome.Unavailable);
-            }
+                return (NetChatHttpFailure(provider, model, (int)response.StatusCode, await SafeBody(response), response), "", null);
             using var idle = new CancellationTokenSource();
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(idle.Token));
             var text = new StringBuilder();
@@ -233,30 +306,40 @@ public partial class MainWindow
                 idle.CancelAfter(TimeSpan.FromSeconds(25)); // no data for this long: the stream is stuck
                 string? line = await reader.ReadLineAsync(idle.Token);
                 if (line == null) break;
-                if (!line.StartsWith("data:", StringComparison.Ordinal)) continue; // blank lines, ": keep-alive"
+                if (!line.StartsWith("data:", StringComparison.Ordinal)) continue; // blank lines, ": OPENROUTER PROCESSING"
                 var data = line[5..].Trim();
                 if (data == "[DONE]") break;
                 try
                 {
                     using var chunk = JsonDocument.Parse(data);
-                    if (!chunk.RootElement.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0) continue;
+                    var root = chunk.RootElement;
+                    if (root.TryGetProperty("error", out var error)) // an error after the stream started (HTTP 200)
+                    {
+                        if (shown.Length > 0) break;
+                        int code = error.TryGetProperty("code", out var c) && c.TryGetInt32(out var n) ? n : 502;
+                        string why = error.TryGetProperty("message", out var m) ? m.GetString() ?? "" : "";
+                        return (NetChatHttpFailure(provider, model, code, why, null), "", null);
+                    }
+                    if (!root.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0) continue;
                     if (!choices[0].TryGetProperty("delta", out var delta) || !delta.TryGetProperty("content", out var content)
-                        || content.ValueKind != JsonValueKind.String) continue; // reasoning_content and role-only chunks
+                        || content.ValueKind != JsonValueKind.String) continue; // reasoning and role-only chunks
                     text.Append(content.GetString());
                 }
                 catch (JsonException) { continue; }
                 raw = text.ToString();
                 var visible = NetChatVisible(raw, out action);
                 if (visible.Length > 0 && visible != shown) { shown = visible; ShowCompanionPartial(visible, version); }
-                if (companionClosed) return Finish(NetChatOutcome.Answered);
+                if (companionClosed) return (Attempt.Stop, "", null);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or IOException)
         {
             if (shown.Length == 0)
             {
-                NetChatNetworkFailure(ex is OperationCanceledException ? "连接超时" : ex.Message);
-                return Finish(NetChatOutcome.Unavailable);
+                LogCompanionError($"{provider.Short} 联网聊天连不上（{model}）：" + (ex is OperationCanceledException ? "超时" : ex.Message));
+                netChatRetryAt = DateTime.UtcNow.AddMinutes(3); // the network itself: no use trying the other models
+                netChatRetryWhy = "连不上" + provider.Short;
+                return (Attempt.Stop, "", null);
             }
             shown += "……"; // cut off mid-sentence: keep what arrived
         }
@@ -264,33 +347,12 @@ public partial class MainWindow
         if (reply.Length == 0 && shown.Length > 0) reply = shown;
         if (reply.Length == 0)
         {
-            NetChatNetworkFailure("没有收到回答");
-            return Finish(NetChatOutcome.Unavailable);
+            LogCompanionError($"{provider.Short} 联网聊天：{model} 没有回答内容");
+            netModelSkipUntil[model] = DateTime.UtcNow.AddMinutes(10);
+            return (provider == DeepSeekProvider ? Attempt.Stop : Attempt.NextModel, "", null);
         }
-        if (version == speechRequestVersion) { EndModelSpeech(); FinishCompanionPartial(reply); }
-        if (action != null && NetChatActions.TryGetValue(action, out var clip) && !dragging && TryFindRule(clip) is { } rule && ActionAllowed(50, true))
-        {
-            CancelMovement();
-            PlayAnimation(rule, "Interact");
-        }
-        LogChat(message, reply, "DeepSeek 联网");
-        chatSession.Add(new CompanionBrain.ChatMessage("user", message));
-        chatSession.Add(new CompanionBrain.ChatMessage("assistant", reply));
-        if (chatSession.Count > 12) chatSession.RemoveRange(0, chatSession.Count - 12);
-        RememberChat(message, reply);
-        PetEvent("chat.reply", reply, said: reply);
-        netChatRetryAt = DateTime.MinValue;
-        lastNetChatOk = DateTime.UtcNow;
-        return NetChatOutcome.Answered;
-
-        NetChatOutcome Finish(NetChatOutcome outcome)
-        {
-            if (version == speechRequestVersion) EndModelSpeech();
-            return outcome;
-        }
+        return (Attempt.Answered, reply, action);
     }
-
-    private DateTime lastNetChatOk = DateTime.MinValue;
 
     private static async Task<string> SafeBody(HttpResponseMessage response)
     {
@@ -304,96 +366,142 @@ public partial class MainWindow
         catch { return ""; }
     }
 
-    // 401 / 402 / 400 / 422 need the owner (key, balance, model name); busy or server trouble just waits a little.
-    private void NetChatHttpFailure(int code, string detail)
+    // What a failed request means: the key or account needs the owner (stop until the settings change), the free
+    // daily quota is used up (stop until it resets), or just this model is unavailable (try the next one).
+    private Attempt NetChatHttpFailure(NetProvider provider, string model, int code, string detail, HttpResponseMessage? response)
     {
-        string? blocked = code switch
+        LogCompanionError($"{provider.Short} 联网聊天：{model} HTTP {code} {detail}");
+        if (code == 401) { netChatBlocked = $"{provider.Short} 的 Key 不对或已失效"; return Attempt.Stop; }
+        if (code == 402) { netChatBlocked = provider == DeepSeekProvider ? "DeepSeek 账户余额不足" : "OpenRouter 账户欠费（余额为负时免费模型也用不了）"; return Attempt.Stop; }
+        if (provider == DeepSeekProvider)
         {
-            401 => "DeepSeek 的 API Key 不对或已失效",
-            402 => "DeepSeek 账户余额不足",
-            400 or 404 or 422 => $"DeepSeek 不接受这个请求（{code}，可能是模型名「{NetChatModel}」不对）",
-            _ => null
-        };
-        LogCompanionError($"DeepSeek 联网聊天：HTTP {code} {detail}");
-        if (blocked != null) netChatBlocked = blocked; // shown under the chat box until the settings change
-        else netChatRetryAt = DateTime.UtcNow.AddMinutes(code == 429 ? 1 : 3);
-    }
-
-    private void NetChatNetworkFailure(string reason)
-    {
-        LogCompanionError("DeepSeek 联网聊天连不上：" + reason);
-        netChatRetryAt = DateTime.UtcNow.AddMinutes(3); // try the network again in a few minutes
+            if (code is 400 or 404 or 422) { netChatBlocked = $"DeepSeek 不接受这个请求（{code}，可能是模型名「{model}」不对）"; return Attempt.Stop; }
+            netChatRetryAt = DateTime.UtcNow.AddMinutes(code == 429 ? 1 : 3);
+            netChatRetryWhy = code == 429 ? "DeepSeek 限流" : "DeepSeek 服务器忙";
+            return Attempt.Stop;
+        }
+        if (detail.Contains("data policy", StringComparison.OrdinalIgnoreCase) || detail.Contains("privacy", StringComparison.OrdinalIgnoreCase))
+        {
+            netChatBlocked = "OpenRouter 的隐私设置不允许免费模型（到 openrouter.ai/settings/privacy 打开免费模型）";
+            return Attempt.Stop;
+        }
+        if (code == 429 && response != null && response.Headers.TryGetValues("X-RateLimit-Remaining", out var left) && left.FirstOrDefault() == "0")
+        {
+            // the free-model quota is shared by every ":free" model: wait for its reset (the next UTC day for the daily one)
+            DateTime reset = DateTime.UtcNow.AddMinutes(1);
+            if (response.Headers.TryGetValues("X-RateLimit-Reset", out var resets) && long.TryParse(resets.FirstOrDefault(), out long ms))
+                reset = DateTimeOffset.FromUnixTimeMilliseconds(ms).UtcDateTime;
+            netChatRetryAt = reset < DateTime.UtcNow ? DateTime.UtcNow.AddMinutes(1) : reset.AddSeconds(5);
+            netChatRetryWhy = (netChatRetryAt - DateTime.UtcNow).TotalMinutes > 5 ? "今天的免费次数用完了" : "免费模型每分钟次数用完了";
+            return Attempt.Stop;
+        }
+        // this model only: no provider serving it now (404), rejected settings (400), busy (429/5xx)
+        netModelSkipUntil[model] = DateTime.UtcNow.AddMinutes(code is 404 or 400 ? 30 : 5);
+        return Attempt.NextModel;
     }
 
     // ---------------------------------------------------------------- 「测试连接」 in the settings
-    private async Task<string> TestDeepSeekAsync()
+    private async Task<string> TestNetChatAsync()
     {
-        string? key = DeepSeekKey();
-        if (key == null) return "还没有填 API Key。";
+        var provider = CurrentProvider;
+        string? key = NetKey(provider);
+        if (key == null) return "还没有填 Key。";
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
-            using var request = new HttpRequestMessage(HttpMethod.Get, DeepSeekApiBase + "/models");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-            using var response = await deepSeekWeb.SendAsync(request, cts.Token);
-            if (response.StatusCode == HttpStatusCode.Unauthorized) return "连上了，但 API Key 不对或已失效（401）。";
-            if (!response.IsSuccessStatusCode) return $"连上了，但服务器返回 {(int)response.StatusCode}：{await SafeBody(response)}";
-            var models = new List<string>();
-            using (var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cts.Token)))
-                if (json.RootElement.TryGetProperty("data", out var data))
-                    foreach (var item in data.EnumerateArray())
-                        if (item.TryGetProperty("id", out var id) && id.GetString() is { } name) models.Add(name);
-            string result = "连接正常，API Key 有效。";
-            if (models.Count > 0)
-                result += models.Contains(NetChatModel) ? $"模型「{NetChatModel}」可用。" : $"注意：可用模型里没有「{NetChatModel}」，现有：{string.Join("、", models)}。";
-            try
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            string result;
+            if (provider == OpenRouterProvider)
             {
-                using var balanceRequest = new HttpRequestMessage(HttpMethod.Get, DeepSeekApiBase + "/user/balance");
-                balanceRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-                using var balance = await deepSeekWeb.SendAsync(balanceRequest, cts.Token);
-                if (balance.IsSuccessStatusCode)
+                using (var request = NetRequest(provider, HttpMethod.Get, "/key", key))
+                using (var response = await netChatWeb.SendAsync(request, cts.Token))
                 {
-                    using var json = JsonDocument.Parse(await balance.Content.ReadAsStringAsync(cts.Token));
-                    var root = json.RootElement;
-                    if (root.TryGetProperty("balance_infos", out var infos) && infos.GetArrayLength() > 0)
+                    if (response.StatusCode == HttpStatusCode.Unauthorized) return "连上了，但 OpenRouter 的 Key 不对或已失效（401）。";
+                    if (!response.IsSuccessStatusCode) return $"连上了，但 OpenRouter 返回 {(int)response.StatusCode}：{await SafeBody(response)}";
+                    result = "连接正常，Key 有效。";
+                    using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cts.Token));
+                    if (json.RootElement.TryGetProperty("data", out var data) && data.TryGetProperty("free_model_daily_requests", out var free)
+                        && free.ValueKind == JsonValueKind.Object)
                     {
-                        var first = infos[0];
-                        string currency = first.TryGetProperty("currency", out var c) ? c.GetString() ?? "" : "";
-                        string total = first.TryGetProperty("total_balance", out var t) ? t.ToString() : "";
-                        result += $"余额 {total} {currency}";
-                        if (root.TryGetProperty("is_available", out var available) && available.ValueKind == JsonValueKind.False) result += "（余额不足，暂时不能用）";
-                        result += "。";
+                        string Num(string name) => free.TryGetProperty(name, out var v) ? v.ToString() : "?";
+                        result += $"今天免费次数：已用 {Num("used")} / {Num("limit")}。";
                     }
                 }
+                var states = new List<string>();
+                foreach (var model in NetChatModels(provider))
+                {
+                    try
+                    {
+                        using var request = NetRequest(provider, HttpMethod.Get, "/models/" + model + "/endpoints", key);
+                        using var response = await netChatWeb.SendAsync(request, cts.Token);
+                        int count = -1;
+                        if (response.IsSuccessStatusCode)
+                        {
+                            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cts.Token));
+                            if (json.RootElement.TryGetProperty("data", out var data) && data.TryGetProperty("endpoints", out var endpoints)) count = endpoints.GetArrayLength();
+                        }
+                        states.Add($"{model}：" + (count > 0 ? "可用" : count == 0 ? "现在没有服务商提供（会自动跳过）" : $"查不到（{(int)response.StatusCode}）"));
+                    }
+                    catch (Exception ex) when (ex is HttpRequestException or JsonException) { states.Add($"{model}：查不到"); }
+                }
+                result += "\n" + string.Join("\n", states);
             }
-            catch { } // the balance is a nicety
-            netChatBlocked = null;
-            netChatRetryAt = DateTime.MinValue;
+            else
+            {
+                using var request = NetRequest(provider, HttpMethod.Get, "/models", key);
+                using var response = await netChatWeb.SendAsync(request, cts.Token);
+                if (response.StatusCode == HttpStatusCode.Unauthorized) return "连上了，但 DeepSeek 的 API Key 不对或已失效（401）。";
+                if (!response.IsSuccessStatusCode) return $"连上了，但 DeepSeek 返回 {(int)response.StatusCode}：{await SafeBody(response)}";
+                var models = new List<string>();
+                using (var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cts.Token)))
+                    if (json.RootElement.TryGetProperty("data", out var data))
+                        foreach (var item in data.EnumerateArray())
+                            if (item.TryGetProperty("id", out var id) && id.GetString() is { } name) models.Add(name);
+                string model = NetChatModels(provider).FirstOrDefault() ?? DeepSeekProvider.DefaultModels;
+                result = "连接正常，API Key 有效。";
+                if (models.Count > 0) result += models.Contains(model) ? $"模型「{model}」可用。" : $"注意：可用模型里没有「{model}」，现有：{string.Join("、", models)}。";
+                try
+                {
+                    using var balanceRequest = NetRequest(provider, HttpMethod.Get, "/user/balance", key);
+                    using var balance = await netChatWeb.SendAsync(balanceRequest, cts.Token);
+                    if (balance.IsSuccessStatusCode)
+                    {
+                        using var json = JsonDocument.Parse(await balance.Content.ReadAsStringAsync(cts.Token));
+                        if (json.RootElement.TryGetProperty("balance_infos", out var infos) && infos.GetArrayLength() > 0)
+                        {
+                            var first = infos[0];
+                            result += $"余额 {(first.TryGetProperty("total_balance", out var t) ? t.ToString() : "?")} {(first.TryGetProperty("currency", out var c) ? c.GetString() : "")}。";
+                        }
+                    }
+                }
+                catch { } // the balance is a nicety
+            }
+            ResetNetChatState();
             return result;
         }
-        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException)
+        catch (Exception ex) when (ex is HttpRequestException or OperationCanceledException or JsonException)
         {
-            return "连不上 DeepSeek（" + (ex is OperationCanceledException ? "超时" : ex.Message) + "），聊天会自动用本地模型。";
+            return $"连不上 {provider.Short}（" + (ex is OperationCanceledException ? "超时" : ex.Message) + "），聊天会自动用本地模型。";
         }
     }
 
-    // The line under the chat box: which brain answers now, and why not DeepSeek.
+    // The line under the chat box: which brain answers now, and why not the network.
     private string ChatIdleStatus()
     {
         string mode = !NetChatConfigured ? "本地模型"
             : netChatBlocked != null ? "本地模型（" + netChatBlocked + "）"
-            : DateTime.UtcNow < netChatRetryAt ? "本地模型（DeepSeek 暂时连不上）"
-            : "联网 · DeepSeek";
+            : DateTime.UtcNow < netChatRetryAt ? "本地模型（" + (netChatRetryWhy ?? "联网暂时不可用") + "）"
+            : "联网 · " + CurrentProvider.Short + (lastNetChatModel is { } m ? "（" + m[(m.IndexOf('/') + 1)..] + "）" : "");
         return "Enter 发送 · Esc 收起 · " + mode;
     }
 
     private string NetChatStateText()
     {
         if (!preferences.NetChatEnabled) return "联网聊天已关闭：只用本地模型。";
-        if (DeepSeekKey() == null) return "还没有填 DeepSeek API Key：现在只用本地模型。";
+        var provider = CurrentProvider;
+        if (NetKey(provider) == null) return $"还没有填 {provider.Short} 的 Key：现在只用本地模型。";
         if (netChatBlocked != null) return netChatBlocked + "：先用本地模型（改好后点「测试连接」）。";
-        if (DateTime.UtcNow < netChatRetryAt) return "刚才连不上 DeepSeek：现在用本地模型，过几分钟自动再试。";
-        return lastNetChatOk > DateTime.MinValue ? "联网正常：用 DeepSeek 聊天。" : "已设置：连得上就用 DeepSeek，连不上用本地模型。";
+        if (DateTime.UtcNow < netChatRetryAt) return (netChatRetryWhy ?? "联网暂时不可用") + $"：现在用本地模型，{netChatRetryAt.ToLocalTime():HH:mm} 后自动再试。";
+        return lastNetChatModel != null ? $"联网正常：用 {provider.Short}（{lastNetChatModel}）聊天。" : $"已设置：连得上就用 {provider.Short}，连不上用本地模型。";
     }
 
     // ---------------------------------------------------------------- TIMEOUT_SIGNAL (CareTick)
@@ -413,76 +521,104 @@ public partial class MainWindow
     private void AddNetChatSettings(Panel page, Action<string> note)
     {
         var muted = Brushes.SlateGray;
-        var enable = new CheckBox { Content = "联网聊天：DeepSeek 连得上就用它聊天，连不上（没网、超时、服务器忙）自动换回本地模型", IsChecked = preferences.NetChatEnabled, Margin = new Thickness(0, 6, 0, 4) };
+        var enable = new CheckBox { Content = "联网聊天：连得上就用联网模型聊天，连不上（没网、超时、服务器忙、免费次数用完）自动换回本地模型", IsChecked = preferences.NetChatEnabled, Margin = new Thickness(0, 6, 0, 4) };
         var state = new TextBlock { Foreground = muted, FontSize = 12, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6), Text = NetChatStateText() };
         enable.Click += (_, _) => { preferences.NetChatEnabled = enable.IsChecked == true; SaveCompanion(); state.Text = NetChatStateText(); };
         page.Children.Add(enable);
+
+        var providerRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
+        providerRow.Children.Add(new TextBlock { Text = "用哪家", Width = 70, VerticalAlignment = VerticalAlignment.Center });
+        var providerBox = new ComboBox { MinWidth = 300 };
+        System.Windows.Automation.AutomationProperties.SetName(providerBox, "联网聊天用哪家");
+        foreach (var p in NetProviders) providerBox.Items.Add(p.Title);
+        providerBox.SelectedIndex = Array.IndexOf(NetProviders, CurrentProvider);
+        providerRow.Children.Add(providerBox);
+        page.Children.Add(providerRow);
         page.Children.Add(state);
 
         var keyRow = new DockPanel { Margin = new Thickness(0, 2, 0, 6) };
-        var keyLabel = new TextBlock { Text = "API Key", Width = 70, VerticalAlignment = VerticalAlignment.Center };
+        var keyLabel = new TextBlock { Text = "Key", Width = 70, VerticalAlignment = VerticalAlignment.Center };
         DockPanel.SetDock(keyLabel, Dock.Left);
         keyRow.Children.Add(keyLabel);
         var keyButtons = new StackPanel { Orientation = Orientation.Horizontal };
         DockPanel.SetDock(keyButtons, Dock.Right);
         keyRow.Children.Add(keyButtons);
-        var keyBox = new PasswordBox { MinWidth = 180, Margin = new Thickness(0, 0, 8, 0), VerticalContentAlignment = VerticalAlignment.Center };
-        System.Windows.Automation.AutomationProperties.SetName(keyBox, "DeepSeek API Key");
+        var keyBox = new PasswordBox { MinWidth = 160, Margin = new Thickness(0, 0, 8, 0), VerticalContentAlignment = VerticalAlignment.Center };
+        System.Windows.Automation.AutomationProperties.SetName(keyBox, "联网聊天的 Key");
         keyRow.Children.Add(keyBox);
-        Button Small(string text, Action action)
+        Button Small(Panel panel, string text, Action action)
         {
             var b = BigBlueFish.Deployment.ModernUI.Button(text, action);
             b.Margin = new Thickness(0, 0, 6, 0);
             b.Padding = new Thickness(10, 3, 10, 3);
             b.MinWidth = 0;
-            keyButtons.Children.Add(b);
+            panel.Children.Add(b);
             return b;
         }
-        void Describe() => keyBox.ToolTip = DeepSeekKey() is { } k ? $"已保存（…{k[^Math.Min(4, k.Length)..]}，只在这台电脑上加密保存）" : "还没有保存 API Key";
-        Describe();
-        Small("保存", () =>
+        void Describe() => keyBox.ToolTip = NetKey(CurrentProvider) is { } k
+            ? $"已保存 {CurrentProvider.Short} 的 Key（…{k[^Math.Min(4, k.Length)..]}，只在这台电脑上加密保存）" : $"还没有保存 {CurrentProvider.Short} 的 Key";
+        Small(keyButtons, "保存", () =>
         {
-            if (keyBox.Password.Trim().Length == 0 && DeepSeekKey() == null) { state.Text = "先把 API Key 粘贴到框里再保存。"; return; }
-            try { if (keyBox.Password.Trim().Length > 0) SaveDeepSeekKey(keyBox.Password); }
+            if (keyBox.Password.Trim().Length == 0) { state.Text = "先把 Key 粘贴到框里再保存。"; return; }
+            try { SaveNetKey(CurrentProvider, keyBox.Password); }
             catch (Exception ex) { state.Text = "保存失败：" + ex.Message; return; }
             keyBox.Clear();
             Describe();
             state.Text = "已保存（加密存在本机）。" + NetChatStateText();
         });
         Button? test = null;
-        test = Small("测试连接", async () =>
+        test = Small(keyButtons, "测试连接", async () =>
         {
             test!.IsEnabled = false;
-            state.Text = "正在连接 DeepSeek……";
-            try { state.Text = await TestDeepSeekAsync(); }
+            state.Text = $"正在连接 {CurrentProvider.Short}……";
+            try { state.Text = await TestNetChatAsync(); }
             finally { test.IsEnabled = true; }
         });
-        Small("删除", () => { SaveDeepSeekKey(null); keyBox.Clear(); Describe(); state.Text = "已删除 API Key：只用本地模型。"; });
+        Small(keyButtons, "删除", () => { SaveNetKey(CurrentProvider, null); keyBox.Clear(); Describe(); state.Text = "已删除 Key。" + NetChatStateText(); });
         page.Children.Add(keyRow);
 
-        var modelRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 6) };
-        modelRow.Children.Add(new TextBlock { Text = "模型", Width = 70, VerticalAlignment = VerticalAlignment.Center });
-        var model = new TextBox { Text = NetChatModel, MinWidth = 180, VerticalContentAlignment = VerticalAlignment.Center };
-        System.Windows.Automation.AutomationProperties.SetName(model, "DeepSeek 模型名");
+        var modelRow = new DockPanel { Margin = new Thickness(0, 2, 0, 6) };
+        var modelLabel = new TextBlock { Text = "模型", Width = 70, VerticalAlignment = VerticalAlignment.Center };
+        DockPanel.SetDock(modelLabel, Dock.Left);
+        modelRow.Children.Add(modelLabel);
+        var keysPage = new StackPanel { Orientation = Orientation.Horizontal };
+        DockPanel.SetDock(keysPage, Dock.Right);
+        modelRow.Children.Add(keysPage);
+        Small(keysPage, "获取 Key…", () => { try { Process.Start(new ProcessStartInfo(CurrentProvider.KeysPage) { UseShellExecute = true }); } catch { } });
+        var model = new TextBox { MinWidth = 160, Margin = new Thickness(0, 0, 8, 0), VerticalContentAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap,
+            ToolTip = "OpenRouter 可以写几个模型，用逗号隔开，按顺序试；以 :free 结尾的是免费模型" };
+        System.Windows.Automation.AutomationProperties.SetName(model, "联网聊天的模型");
+        modelRow.Children.Add(model);
         model.LostFocus += (_, _) =>
         {
+            var provider = CurrentProvider;
             string value = model.Text.Trim();
-            preferences.DeepSeekModel = value.Length == 0 || value == DefaultDeepSeekModel ? null : value;
-            model.Text = NetChatModel;
-            netChatBlocked = null;
+            string? custom = value.Length == 0 || value == provider.DefaultModels ? null : value;
+            if (provider == DeepSeekProvider) preferences.DeepSeekModel = custom; else preferences.OpenRouterModels = custom;
+            model.Text = NetChatModelText(provider);
+            ResetNetChatState();
             SaveCompanion();
         };
-        modelRow.Children.Add(model);
-        var keys = BigBlueFish.Deployment.ModernUI.Button("获取 API Key…", () =>
-        {
-            try { Process.Start(new ProcessStartInfo(DeepSeekKeysPage) { UseShellExecute = true }); } catch { }
-        });
-        keys.Margin = new Thickness(10, 0, 0, 0);
-        keys.Padding = new Thickness(10, 3, 10, 3);
-        modelRow.Children.Add(keys);
         page.Children.Add(modelRow);
+        void ShowProvider()
+        {
+            model.Text = NetChatModelText(CurrentProvider);
+            keyBox.Clear();
+            Describe();
+            state.Text = NetChatStateText();
+        }
+        ShowProvider();
+        providerBox.SelectionChanged += (_, _) =>
+        {
+            if (providerBox.SelectedIndex < 0) return;
+            preferences.NetChatProvider = NetProviders[providerBox.SelectedIndex].Id;
+            lastNetChatModel = null;
+            ResetNetChatState();
+            SaveCompanion();
+            ShowProvider();
+        };
 
-        page.Children.Add(new TextBlock { Text = "联网时的性格（发给 DeepSeek 的人设，可以改）", Margin = new Thickness(0, 6, 0, 4) });
+        page.Children.Add(new TextBlock { Text = "联网时的性格（发给联网模型的人设，可以改）", Margin = new Thickness(0, 6, 0, 4) });
         var persona = new TextBox { Text = NetChatPersona, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 120, MaxHeight = 220,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FontSize = 12, Margin = new Thickness(0, 0, 0, 4) };
         System.Windows.Automation.AutomationProperties.SetName(persona, "联网聊天的性格设定");
@@ -502,10 +638,13 @@ public partial class MainWindow
         reset.HorizontalAlignment = HorizontalAlignment.Left;
         reset.Margin = new Thickness(0, 0, 0, 6);
         page.Children.Add(reset);
-        note("联网聊天用的是 DeepSeek 开放平台的 API（platform.deepseek.com，按用量付费，需要你自己的 API Key），不是网页版——网页版的用户协议不允许用程序自动聊天。"
-            + "联网时，你在聊天框说的话、最近几轮对话、鱼鱼想起的相关记忆和称呼、好感度、时间会发给 DeepSeek 服务器；连不上时全部在本机用本地模型。"
-            + "API Key 用 Windows 的数据保护加密，只存在这台电脑（data\\deepseek-api-key.bin），只发给 api.deepseek.com。"
-            + "回复开头的【动作：…】会让她做对应的动作；超过 10 分钟没收到你的消息（聊天框还开着），她会软软地问「主人还在吗……」并轻轻甩尾鳍。"
+        note("OpenRouter 免费模型：到 openrouter.ai 注册免费账号、创建一个 Key（不用充值），填进来点「测试连接」。默认按顺序试 DeepSeek V4 Flash 免费版、Gemma 4 31B 免费版、Nemotron 3 Ultra 免费版："
+            + "哪个现在没有服务商提供就自动跳过（DeepSeek 免费版哪天恢复就自动用上）。免费次数每天约 50 次、每分钟 20 次（UTC 零点重置），用完当天自动换回本地模型。"
+            + "免费模型的服务商可能会记录对话、用来改进模型；OpenRouter 隐私设置不允许免费模型时，测试和聊天会提示。"
+            + "DeepSeek 官方 API 按用量付费，需要 platform.deepseek.com 的 API Key。两家都不使用 DeepSeek 网页版——网页版的用户协议不允许用程序自动聊天。"
+            + "联网时，你说的话、最近几轮对话、鱼鱼想起的相关记忆和称呼、好感度、时间会发给所选的服务；连不上时全部在本机用本地模型。"
+            + "Key 用 Windows 的数据保护加密，只存在这台电脑的 data 文件夹，只发给所选服务的地址。"
+            + "回复开头的【动作：…】会让她做对应的动作；聊天框开着、10 分钟没收到你的消息，她会软软地问「主人还在吗……」并轻轻甩尾鳍。"
             + "人设里的“听主人的”只限于安全、正当的事；聊天始终保持温暖健康。");
     }
 }

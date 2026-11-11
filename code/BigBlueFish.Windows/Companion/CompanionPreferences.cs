@@ -120,10 +120,12 @@ internal sealed class CompanionPreferences
     public string ChatLogFolder { get; set; } = "";
     // DeepSeek 网页版 without the system proxy (DeepSeek only offers WeChat sign-in to mainland China networks).
     public bool DeepSeekDirect { get; set; }
-    // 联网聊天: the chat box uses the DeepSeek API (key kept encrypted in data\deepseek-api-key.bin) when it can.
+    // 联网聊天: the chat box uses a network model (OpenRouter free models or the DeepSeek API; keys DPAPI-encrypted in data) when it can.
     public bool NetChatEnabled { get; set; } = true;
-    public string? DeepSeekModel { get; set; }   // null = MainWindow.DefaultDeepSeekModel
-    public string? DeepSeekPersona { get; set; } // null = MainWindow.DefaultDeepSeekPersona
+    public string? NetChatProvider { get; set; }  // "openrouter" (free models, default) or "deepseek" (paid API)
+    public string? OpenRouterModels { get; set; } // null = the default list of free models
+    public string? DeepSeekModel { get; set; }    // null = deepseek-flash
+    public string? DeepSeekPersona { get; set; }  // persona for the network chat; null = MainWindow.DefaultDeepSeekPersona
     // 动作库: action id → pool ("Event", "Click", "Idle", "Disabled") chosen by the owner.
     public System.Collections.Generic.Dictionary<string, string> PoolOverrides { get; set; } = new();
     public int BreakfastHour { get; set; } = 8;
