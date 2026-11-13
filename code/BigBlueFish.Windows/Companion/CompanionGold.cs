@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -17,7 +18,7 @@ using System.Windows.Shapes;
 namespace BigBlueFish.Windows;
 
 internal sealed record GoldQuote(string Variety, string Code, double Price, double UpDown, double Open, double PreClose,
-    double High, double Low, string Time)
+    double High, double Low, string Time, double Average = 0)
 {
     internal double Percent => PreClose > 0 ? UpDown / PreClose * 100 : 0;
     internal string Unit => Code.StartsWith("AG", StringComparison.Ordinal) ? "元/千克" : "元/克";
@@ -40,11 +41,14 @@ internal static class CompanionGoldFeed
     private static string Text(JsonElement item, string name) =>
         item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : "";
 
-    // Quotes with a real price; the date of the snapshot ("2026-11-02 10:34") comes out separately.
-    internal static List<GoldQuote> Parse(string json, out string snapshot)
+    // Quotes with a real price. `snapshot` is the server's own clock ("2026-11-12 16:44"; it also runs while the market is
+    // shut, so it says nothing about the market) and `signature` changes whenever anything in the feed moves: the exchange's
+    // time, a price or a traded volume of any variety.
+    internal static List<GoldQuote> Parse(string json, out string snapshot, out string signature)
     {
-        snapshot = "";
+        snapshot = signature = "";
         var result = new List<GoldQuote>();
+        var moving = new StringBuilder();
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
         if (Text(root, "returnCode") != "SUC0000" || !root.TryGetProperty("body", out var body)) return result;
@@ -53,9 +57,12 @@ internal static class CompanionGoldFeed
         foreach (var item in data.EnumerateArray())
         {
             var quote = new GoldQuote(Text(item, "variety"), Text(item, "goldNo"), Number(item, "curPrice"), Number(item, "upDown"),
-                Number(item, "open"), Number(item, "preClose"), Number(item, "high"), Number(item, "low"), Text(item, "time"));
+                Number(item, "open"), Number(item, "preClose"), Number(item, "high"), Number(item, "low"), Text(item, "time"), Number(item, "avePrice"));
+            moving.Append(quote.Code).Append(' ').Append(quote.Time).Append(' ').Append(quote.Price.ToString("0.00", CultureInfo.InvariantCulture))
+                .Append(' ').Append(Number(item, "tradeCount").ToString("0", CultureInfo.InvariantCulture)).Append(';');
             if (quote.Code.Length > 0 && quote.Price > 0) result.Add(quote);
         }
+        signature = moving.ToString();
         return result;
     }
 
@@ -69,14 +76,88 @@ internal static class CompanionGoldFeed
         bool night = weekday && t >= new TimeSpan(20, 0, 0);
         return day || night || afterNight;
     }
+
+    // When the session that is trading at `local` began (only meaningful while MarketOpen).
+    internal static DateTime SessionStart(DateTime local)
+    {
+        var t = local.TimeOfDay;
+        if (t < new TimeSpan(3, 0, 0)) return local.Date.AddDays(-1).AddHours(20);
+        if (t < new TimeSpan(12, 0, 0)) return local.Date.AddHours(9);
+        if (t < new TimeSpan(16, 0, 0)) return local.Date.AddHours(13.5);
+        return local.Date.AddHours(20);
+    }
+
+    // The timetable says the exchange trades, but a look at the feed ten minutes or more after it last moved still found
+    // nothing new: a public holiday (the timetable does not know them) or the feed has stopped. Every session gets ten
+    // minutes to show that it is alive, and a slow update rate (每小时, 每天) is not mistaken for a market standing still.
+    internal static readonly TimeSpan StallAfter = TimeSpan.FromMinutes(10);
+
+    internal static bool Stalled(DateTime local, DateTime lastMove, DateTime lastLook)
+    {
+        if (!MarketOpen(local)) return false;
+        var start = SessionStart(local);
+        return lastLook - (lastMove > start ? lastMove : start) >= StallAfter;
+    }
+
+    // The next moment worth looking at while the market is shut: a session opening (9:00, 13:30, 20:00 on weekdays) or the
+    // final price just after a close (2:30, 15:30).
+    internal static DateTime NextEvent(DateTime local)
+    {
+        for (int d = 0; d < 8; d++)
+        {
+            var day = local.Date.AddDays(d);
+            bool weekday = day.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Friday;
+            bool afterNight = day.DayOfWeek is >= DayOfWeek.Tuesday and <= DayOfWeek.Saturday;
+            foreach (var (time, on) in new[] { (new TimeSpan(2, 31, 30), afterNight), (new TimeSpan(9, 0, 0), weekday), (new TimeSpan(13, 30, 0), weekday),
+                         (new TimeSpan(15, 31, 30), weekday), (new TimeSpan(20, 0, 0), weekday) })
+                if (on && day.Add(time) > local) return day.Add(time);
+        }
+        return local.AddDays(1);
+    }
+
+    // Seconds to wait before the next request: the chosen rate while the market really trades, at most every ten minutes
+    // while it is shut or stands still, and after failures 5 s, 15 s, 1 min, 5 min, then every 10 min.
+    internal static int NextDelay(int interval, bool open, bool stalled, int failures)
+    {
+        int normal = open && !stalled ? interval : Math.Max(interval, 600);
+        int retry = failures switch { <= 0 => 0, 1 => 5, 2 => 15, 3 => 60, 4 => 300, _ => 600 };
+        return Math.Max(normal, retry);
+    }
+
+    // "850 860，900" → the price levels to watch: positive, different, ascending, at most eight.
+    internal static List<double> ParseLevels(string? text) =>
+        (text ?? "").Split(new[] { ' ', ',', '，', '、', ';', '；', '/', '\t' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => double.TryParse(part, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) && value > 0 && value < 1_000_000 ? Math.Round(value, 2) : 0)
+            .Where(value => value > 0).Distinct().OrderBy(value => value).Take(8).ToList();
+
+    internal static string FormatLevels(IEnumerable<double> levels) =>
+        string.Join(" ", levels.Select(level => level.ToString("0.##", CultureInfo.InvariantCulture)));
+
+    // One watched level and the newest price: +1 when the price has just come up to or through the level, −1 when it has just
+    // fallen below it, 0 otherwise. After an alert the level stays quiet until the price has been 0.1 % away from it, so a price
+    // that hovers on the level does not alert over and over; a move straight through to 0.1 % beyond it does count.
+    internal static int Cross(ref int side, ref bool armed, double level, double price)
+    {
+        int now = price >= level ? 1 : -1;
+        if (side == 0) { side = now; armed = true; return 0; } // the first price seen: nothing has been crossed yet
+        bool away = Math.Abs(price - level) >= Math.Max(level * 0.001, 0.01);
+        if (now != side)
+        {
+            side = now;
+            if (armed || away) { armed = false; return now; }
+            return 0;
+        }
+        if (!armed && away) armed = true;
+        return 0;
+    }
 }
 
-// Real-time CMB gold price: polls the quote, records every change in data\gold-records.csv, tells the owner about
-// big moves and about the price levels she was asked to watch, and answers "金价多少" in chat.
+// Real-time CMB gold price: polls the quote, records every change in data\gold-records\ (one CSV a month), tells the owner
+// about big moves, the price levels she was asked to watch and the day's percentage move, sums the day up after the close,
+// and answers "金价多少" in chat.
 public partial class MainWindow
 {
-    private const string GoldRecordFile = "gold-records.csv";
-    private readonly HttpClient goldWeb = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private readonly HttpClient goldWeb = new(new HttpClientHandler { AutomaticDecompression = DecompressionMethods.All }) { Timeout = TimeSpan.FromSeconds(10) };
     private GoldQuote? goldQuote;
     private string goldSnapshot = "", goldStatus = "还没有获取金价。";
     private DateTime nextGoldFetch = DateTime.MinValue, goldDay = DateTime.MinValue;
@@ -85,6 +166,19 @@ public partial class MainWindow
     private double goldAnnounced = double.NaN, goldLastRecorded = double.NaN;
     private readonly List<(DateTime Local, double Price)> goldToday = new();
     private readonly List<string> goldChanges = new(); // newest last, for the settings page
+    // Is the feed alive? Local times of the last successful request, of the last change anywhere in the feed, and of the
+    // last change that was seen happening (the first look after starting does not count).
+    private string goldFeedSignature = "";
+    private DateTime goldFetchedAt = DateTime.MinValue, goldFeedMoved = DateTime.MinValue, goldTradingSeen = DateTime.MinValue;
+    // The extra price levels (设置里的「其他到价提醒」) and the day's percentage steps that have been announced.
+    private readonly Dictionary<double, (int Side, bool Armed, DateTime Alerted)> goldLevelState = new();
+    private static readonly TimeSpan GoldLevelQuiet = TimeSpan.FromMinutes(15); // between two alerts for the same level
+    private List<double> goldLevels = new();
+    private string goldLevelsText = "\0", goldPercentKey = "";
+    private int goldPercentUp, goldPercentDown;
+    private DateTime nextGoldCloseLook = DateTime.MinValue;
+
+    private bool GoldStalled => CompanionGoldFeed.Stalled(DateTime.Now, goldFeedMoved, goldFetchedAt);
 
     private string GoldName => CompanionGoldFeed.Varieties.FirstOrDefault(v => v.Code == preferences.GoldVariety).Name ?? preferences.GoldVariety;
 
@@ -92,6 +186,9 @@ public partial class MainWindow
     {
         if (!goldWeb.DefaultRequestHeaders.UserAgent.Any())
             goldWeb.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) BigBlueFish");
+        // Earlier versions kept one gold-records.csv and dropped the oldest half at 5 MB; it becomes monthly files once.
+        // If that fails (the file is open in Excel …) it stays where it is and is tried again at the next start.
+        try { CompanionGoldRecords.Migrate(""); } catch { }
         LoadGoldToday();
         // Automated UI tests run offline.
         goldOffline = App.Args.Contains("--test-mode");
@@ -103,13 +200,25 @@ public partial class MainWindow
     private void UpdateGold(DateTime now)
     {
         UpdateGoldHistory(now);
+        GoldCloseSummaryTick();
         if (!preferences.GoldWatch || goldFetching || now < nextGoldFetch) return;
-        bool open = CompanionGoldFeed.MarketOpen(DateTime.Now);
-        // The chosen rate (每秒 … 每天); outside trading hours the quote does not move, so at most every 10 minutes.
-        int interval = open ? preferences.GoldIntervalSeconds : Math.Max(preferences.GoldIntervalSeconds, 600);
-        nextGoldFetch = now.AddSeconds(goldFailures >= 3 ? Math.Max(300, Math.Min(interval, 3600)) : interval);
+        nextGoldFetch = now.AddSeconds(GoldFetchDelay());
         _ = FetchGold();
     }
+
+    // The chosen rate (每秒 … 每天) while the market really trades. While it is shut, or stands still on a public holiday, the
+    // quote does not move: at most every 10 minutes, but on time for the next opening and for the final price after a close.
+    private int GoldFetchDelay()
+    {
+        var local = DateTime.Now;
+        bool trading = CompanionGoldFeed.MarketOpen(local) && !GoldStalled;
+        int delay = CompanionGoldFeed.NextDelay(preferences.GoldIntervalSeconds, trading, false, goldFailures);
+        if (!trading && goldFailures == 0 && preferences.GoldIntervalSeconds < 600)
+            delay = (int)Math.Clamp((CompanionGoldFeed.NextEvent(local) - local).TotalSeconds + 1, 1, delay);
+        return delay;
+    }
+
+    private static string GoldWait(int seconds) => seconds >= 60 ? $"{seconds / 60} 分钟" : $"{seconds} 秒";
 
     private async Task FetchGold(bool announce = true)
     {
@@ -118,22 +227,49 @@ public partial class MainWindow
         try
         {
             string json = await goldWeb.GetStringAsync(CompanionGoldFeed.Url + "?t=" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-            var quotes = CompanionGoldFeed.Parse(json, out var snapshot);
-            if (quotes.Count > 0) goldAllQuotes = quotes;
-            var quote = quotes.FirstOrDefault(q => q.Code == preferences.GoldVariety);
-            if (quote == null) { goldStatus = $"{DateTime.Now:HH:mm:ss} 行情里暂时没有 {GoldName} 的报价。"; return; }
+            var quotes = CompanionGoldFeed.Parse(json, out string snapshot, out string signature);
+            if (quotes.Count == 0) throw new InvalidDataException("招行没有返回行情");
+            var local = DateTime.Now;
             goldFailures = 0;
+            goldFetchedAt = local;
             goldSnapshot = snapshot;
-            goldStatus = $"{DateTime.Now:HH:mm:ss} 已更新（行情时间 {(snapshot.Length > 0 ? snapshot : quote.Time)}）";
+            goldAllQuotes = quotes;
+            if (signature != goldFeedSignature)
+            {
+                if (goldFeedSignature.Length > 0) goldTradingSeen = local;
+                goldFeedSignature = signature;
+                goldFeedMoved = local;
+            }
+            var quote = quotes.FirstOrDefault(q => q.Code == preferences.GoldVariety);
+            if (quote == null) { goldStatus = $"{local:HH:mm:ss} 行情里暂时没有 {GoldName} 的报价。"; return; }
+            goldStatus = $"{local:HH:mm:ss} 已更新（行情时间 {quote.Time}）。";
             OnGoldQuote(quote, announce);
         }
         catch (Exception ex)
         {
             goldFailures++;
-            goldStatus = $"{DateTime.Now:HH:mm:ss} 获取失败：{(ex is TaskCanceledException ? "连接超时" : ex.Message)}";
+            int wait = GoldFetchDelay();
+            nextGoldFetch = DateTime.UtcNow.AddSeconds(wait);
+            goldStatus = $"{DateTime.Now:HH:mm:ss} 获取失败（连续 {goldFailures} 次）：{(ex is TaskCanceledException ? "连接超时" : ex.Message)}；{GoldWait(wait)}后再试。";
         }
         finally { goldFetching = false; }
     }
+
+    // How a sentence about the price ends: "。", "（现在休市）。", or why the price may not be the latest.
+    private string GoldMarketNote()
+    {
+        var local = DateTime.Now;
+        if (goldFailures >= 2 && goldFetchedAt != DateTime.MinValue && local - goldFetchedAt > TimeSpan.FromMinutes(2))
+            return $"（连不上招行，这是 {(goldFetchedAt.Date == local.Date ? goldFetchedAt.ToString("HH:mm") : goldFetchedAt.ToString("M 月 d 日 HH:mm"))} 的价格）。";
+        if (!CompanionGoldFeed.MarketOpen(local)) return "（现在休市）。";
+        if (GoldStalled) return $"（交易时段里行情没有更新{(goldQuote is { Time.Length: > 0 } q ? "，停在 " + q.Time : "")}，可能是节假日休市）。";
+        return "。";
+    }
+
+    // The same for the status lines of the settings page and the gold panel.
+    private string GoldFeedNote() =>
+        GoldStalled ? " 交易时段里行情十分钟没有任何变化，按休市处理：每 10 分钟看一次，恢复后自动跟上。"
+        : CompanionGoldFeed.MarketOpen(DateTime.Now) ? "" : " 现在休市，显示的是最近的价格。";
 
     private void OnGoldQuote(GoldQuote quote, bool announce)
     {
@@ -142,8 +278,30 @@ public partial class MainWindow
         bool changed = goldQuote == null || goldQuote.Price != quote.Price || goldQuote.Code != quote.Code;
         double previous = goldQuote != null && goldQuote.Code == quote.Code ? goldQuote.Price : double.NaN;
         goldQuote = quote;
+        // a new trading day (the previous close changes), another variety or another step: the day's percentage steps start
+        // again; the ones already announced today survive a restart
+        string dayKey = string.Join("|", quote.Code, quote.PreClose.ToString("0.00", CultureInfo.InvariantCulture),
+            preferences.GoldPercentAlert.ToString("0.##", CultureInfo.InvariantCulture));
+        if (dayKey != goldPercentKey)
+        {
+            goldPercentKey = dayKey;
+            goldPercentUp = goldPercentDown = 0;
+            var seen = preferences.GoldPercentSeen.Split('|');
+            if (seen.Length == 5 && string.Join("|", seen[0], seen[1], seen[2]) == dayKey
+                && int.TryParse(seen[3], NumberStyles.None, CultureInfo.InvariantCulture, out int seenUp)
+                && int.TryParse(seen[4], NumberStyles.None, CultureInfo.InvariantCulture, out int seenDown))
+            {
+                goldPercentUp = seenUp;
+                goldPercentDown = seenDown;
+            }
+        }
         if (changed) NotifyGoldViews(); // the forecast's middle and the panel follow the live price
-        if (!changed && !double.IsNaN(goldLastRecorded)) return;
+        if (!changed && !double.IsNaN(goldLastRecorded))
+        {
+            // a step of the day's percentage that she could not announce earlier because she was busy
+            if (announce && TryGoldPercentAlert(quote)) goldAnnounced = quote.Price;
+            return;
+        }
         if (quote.Price != goldLastRecorded) RecordGold(quote, local);
         bool ruled = false; // an owner's rule for this change replaces the built-in change alert
         if (!double.IsNaN(previous) && quote.Price != previous)
@@ -152,36 +310,49 @@ public partial class MainWindow
             ruled = PetEvent("gold.change", change > 0 ? "涨" : "跌", change, new Dictionary<string, string>
             { ["价格"] = quote.Price.ToString("0.00"), ["变动"] = change.ToString("+0.00;-0.00"), ["品种"] = quote.Variety, ["单位"] = quote.Unit });
         }
-        if (!announce) return;
+        if (!announce) return; // a look for the settings page or the panel: the alerts wait for the next regular look
+        var (crossedUp, crossedDown) = GoldLevelsCrossed(quote.Price);
 
-        // Watched levels: one alert each time the price crosses them.
+        // Watched levels: one alert each time the price crosses them; several at once share one bubble.
+        var alerts = new List<(string Text, bool Up, string Kind)>();
         if (preferences.GoldAlertHigh > 0)
         {
             if (goldHighArmed && quote.Price >= preferences.GoldAlertHigh)
             {
                 goldHighArmed = false;
-                string high = $"{bond.Address}！招行{quote.Variety}涨到 {quote.Price:0.00} {quote.Unit} 啦，到你设的 {preferences.GoldAlertHigh:0.##} 了！";
-                SayGold(high, true, "余额-钱袋满溢", true);
-                PetEvent("gold.alert", "高于", quote.Price, new Dictionary<string, string> { ["价格"] = quote.Price.ToString("0.00"), ["品种"] = quote.Variety },
-                    said: high, important: true, ownReaction: true);
-                goldAnnounced = quote.Price;
-                return;
+                alerts.Add(($"{bond.Address}！招行{quote.Variety}涨到 {quote.Price:0.00} {quote.Unit} 啦，到你设的 {preferences.GoldAlertHigh:0.##} 了！", true, "高于"));
             }
-            if (quote.Price < preferences.GoldAlertHigh - 1) goldHighArmed = true;
+            else if (quote.Price < preferences.GoldAlertHigh - 1) goldHighArmed = true;
         }
         if (preferences.GoldAlertLow > 0)
         {
             if (goldLowArmed && quote.Price <= preferences.GoldAlertLow)
             {
                 goldLowArmed = false;
-                string low = $"{bond.Address}！招行{quote.Variety}跌到 {quote.Price:0.00} {quote.Unit} 了，低于你设的 {preferences.GoldAlertLow:0.##}！";
-                SayGold(low, false, "余额-数金皱眉", true);
-                PetEvent("gold.alert", "低于", quote.Price, new Dictionary<string, string> { ["价格"] = quote.Price.ToString("0.00"), ["品种"] = quote.Variety },
-                    said: low, important: true, ownReaction: true);
-                goldAnnounced = quote.Price;
-                return;
+                alerts.Add(($"{bond.Address}！招行{quote.Variety}跌到 {quote.Price:0.00} {quote.Unit} 了，低于你设的 {preferences.GoldAlertLow:0.##}！", false, "低于"));
             }
-            if (quote.Price > preferences.GoldAlertLow + 1) goldLowArmed = true;
+            else if (quote.Price > preferences.GoldAlertLow + 1) goldLowArmed = true;
+        }
+        string Hello() => alerts.Count == 0 ? bond.Address + "！" : "";
+        if (crossedUp.Count > 0)
+            alerts.Add(($"{Hello()}招行{quote.Variety}涨过了你设的 {CompanionGoldFeed.FormatLevels(crossedUp).Replace(" ", "、")}，现在 {quote.Price:0.00} {quote.Unit}！", true, "涨到"));
+        if (crossedDown.Count > 0)
+            alerts.Add(($"{Hello()}招行{quote.Variety}跌破了你设的 {CompanionGoldFeed.FormatLevels(crossedDown).Replace(" ", "、")}，现在 {quote.Price:0.00} {quote.Unit}！", false, "跌到"));
+        if (alerts.Count > 0)
+        {
+            string text = string.Join("\n", alerts.Select(a => a.Text));
+            SayGold(text, alerts[0].Up, alerts[0].Up ? "余额-钱袋满溢" : "余额-数金皱眉", true);
+            PetEvent("gold.alert", string.Join(" ", alerts.Select(a => a.Kind)), quote.Price,
+                new Dictionary<string, string> { ["价格"] = quote.Price.ToString("0.00"), ["品种"] = quote.Variety }, said: text, important: true, ownReaction: true);
+            goldAnnounced = quote.Price;
+            return;
+        }
+
+        // 当日涨跌幅提醒.
+        if (TryGoldPercentAlert(quote))
+        {
+            goldAnnounced = quote.Price;
+            return;
         }
 
         // Big moves since she last mentioned the price.
@@ -203,6 +374,124 @@ public partial class MainWindow
             SayGold($"招行 {quote.Variety} {quote.Price:0.00} {quote.Unit} {(step > 0 ? "↑" : "↓")}{Math.Abs(step):0.00}（{local:HH:mm:ss}，今天 {quote.UpDown:+0.00;-0.00}）",
                 step > 0, null);
         }
+    }
+
+    // ---------------------------------------------------------------- extra levels, the day's percentage, the close
+    private List<double> GoldLevels()
+    {
+        if (goldLevelsText != preferences.GoldAlertLevels)
+        {
+            goldLevelsText = preferences.GoldAlertLevels;
+            goldLevels = CompanionGoldFeed.ParseLevels(goldLevelsText);
+            foreach (double gone in goldLevelState.Keys.Where(level => !goldLevels.Contains(level)).ToList()) goldLevelState.Remove(gone);
+        }
+        return goldLevels;
+    }
+
+    // The extra levels the newest price has just crossed, upward and downward. A price swinging back and forth through a
+    // level is reported at most once in fifteen minutes.
+    private (List<double> Up, List<double> Down) GoldLevelsCrossed(double price)
+    {
+        var up = new List<double>();
+        var down = new List<double>();
+        var now = DateTime.UtcNow;
+        foreach (double level in GoldLevels())
+        {
+            goldLevelState.TryGetValue(level, out var state);
+            int side = state.Side;
+            bool armed = state.Armed;
+            int cross = CompanionGoldFeed.Cross(ref side, ref armed, level, price);
+            if (cross != 0 && now - state.Alerted < GoldLevelQuiet) cross = 0;
+            goldLevelState[level] = (side, armed, cross != 0 ? now : state.Alerted);
+            if (cross > 0) up.Add(level);
+            else if (cross < 0) down.Add(level);
+        }
+        return (up, down);
+    }
+
+    // 当日涨跌幅提醒: one line for every further multiple of the chosen percentage (1 %, 2 %, 3 % …), in each direction, per
+    // trading day. A step reached while she cannot speak is announced as soon as she can, with the numbers of that moment.
+    private bool TryGoldPercentAlert(GoldQuote quote)
+    {
+        double step = preferences.GoldPercentAlert;
+        if (!(step > 0) || !(quote.PreClose > 0)) return false;
+        int up = quote.Percent >= step ? (int)Math.Floor(quote.Percent / step + 1e-9) : 0;
+        int down = quote.Percent <= -step ? (int)Math.Floor(-quote.Percent / step + 1e-9) : 0;
+        bool rose = up > goldPercentUp, fell = down > goldPercentDown;
+        if (!rose && !fell || !GoldAlertAllowed) return false;
+        if (rose) goldPercentUp = up; else goldPercentDown = down;
+        preferences.GoldPercentSeen = $"{goldPercentKey}|{goldPercentUp}|{goldPercentDown}";
+        SaveCompanion();
+        string line = $"招行{quote.Variety}今天已经{(rose ? "涨" : "跌")}了 {Math.Abs(quote.Percent):0.00}%（{quote.UpDown:+0.00;-0.00}），现在 {quote.Price:0.00} {quote.Unit}";
+        SayGold(line, rose, rose ? "余额-金袋叮当" : "余额-数金皱眉");
+        PetEvent("gold.alert", rose ? "涨幅" : "跌幅", quote.Percent, new Dictionary<string, string>
+        { ["价格"] = quote.Price.ToString("0.00"), ["品种"] = quote.Variety, ["涨跌幅"] = quote.Percent.ToString("+0.00;-0.00") + "%" }, said: line, ownReaction: true);
+        return true;
+    }
+
+    // The exchange traded today: the feed was seen moving in today's day session, or today's daily bar has been downloaded
+    // (a public holiday has neither).
+    private bool GoldTradedToday(DateTime local) =>
+        goldTradingSeen.Date == local.Date && goldTradingSeen.TimeOfDay >= new TimeSpan(9, 0, 0)
+        || goldBars.Count > 0 && goldBars[^1].Date.Date == local.Date && goldBarsCode == CompanionGoldForecast.HistoryCode(preferences.GoldVariety);
+
+    // 收盘小结: once a trading day, after the day session has closed at 15:30, from a quote fetched after the close.
+    // CareTick, every second — everything before the bubble is a cheap comparison.
+    private void GoldCloseSummaryTick()
+    {
+        if (!preferences.GoldWatch || !preferences.GoldCloseSummary || goldQuote is not { } quote || quote.Code != preferences.GoldVariety) return;
+        var local = DateTime.Now;
+        if (local.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return;
+        if (local.TimeOfDay < new TimeSpan(15, 32, 0) || local.TimeOfDay >= new TimeSpan(19, 55, 0)) return;
+        string today = local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (preferences.GoldCloseSummaryDate == today) return;
+        if (goldFetchedAt < local.Date.Add(new TimeSpan(15, 31, 0)))
+        {
+            // a slow update rate (每小时, 每天) would not look again in time: one look for the closing price
+            if (!goldFetching && !goldOffline && DateTime.UtcNow >= nextGoldCloseLook)
+            {
+                nextGoldCloseLook = DateTime.UtcNow.AddMinutes(5);
+                _ = FetchGold();
+            }
+            return;
+        }
+        // the day's final bar (downloaded from 15:35 on) says whether yesterday's range held; it gets until 15:45 to arrive
+        bool barReady = goldBars.Count > 0 && goldBars[^1].Date.Date == local.Date && goldBarsFetched.ToLocalTime() >= local.Date.Add(new TimeSpan(15, 35, 0));
+        if (!barReady && local.TimeOfDay < new TimeSpan(15, 45, 0)) return;
+        if (!GoldTradedToday(local) || !GoldAlertAllowed) return;
+        preferences.GoldCloseSummaryDate = today;
+        SaveCompanion();
+        string text = GoldCloseText(quote, local);
+        bool up = quote.UpDown >= 0;
+        SayGold(text, up, up ? "余额-金袋叮当" : "余额-数金皱眉");
+        PetEvent("gold.close", up ? "涨" : "跌", quote.UpDown, new Dictionary<string, string>
+        { ["价格"] = quote.Price.ToString("0.00"), ["变动"] = quote.UpDown.ToString("+0.00;-0.00"), ["品种"] = quote.Variety, ["单位"] = quote.Unit }, said: text, ownReaction: true);
+    }
+
+    private string GoldCloseText(GoldQuote quote, DateTime local)
+    {
+        var text = new StringBuilder($"今天收盘啦：招行 {quote.Variety} 收在 {quote.Price:0.00} {quote.Unit}，{(quote.UpDown >= 0 ? "涨" : "跌")}了 {Math.Abs(quote.UpDown):0.00}"
+            + $"（{quote.Percent:+0.00;-0.00;0.00}%），最高 {quote.High:0.00}、最低 {quote.Low:0.00}。");
+        if (GoldRangeForToday(local) is { } range)
+        {
+            string P(double v) => CompanionGoldForecast.Price(v);
+            string verdict = quote.Price >= range.Low68 && quote.Price <= range.High68 ? "收在区间里"
+                : quote.Price < range.Low95 || quote.Price > range.High95 ? "连 95% 的区间都没接住，今天波动很大"
+                : quote.Price > range.High68 ? "比区间高，还在 95% 的区间里" : "比区间低，还在 95% 的区间里";
+            text.Append($"\n上个交易日推测今天约 68% 的情况收在 {P(range.Low68)}～{P(range.High68)}：{verdict}。");
+        }
+        return text.Append("\n只是回顾，不构成投资建议。").ToString();
+    }
+
+    // The range forecast for today's close on the trading day before (gold-forecasts.csv), if she was running then.
+    private GoldForecastRecord? GoldRangeForToday(DateTime local)
+    {
+        string code = preferences.GoldVariety;
+        if (CompanionGoldForecast.HistoryCode(code) != code) return null;
+        int index = goldBars.FindLastIndex(bar => bar.Date.Date == local.Date);
+        if (index < 1) return null;
+        var baseDate = goldBars[index - 1].Date.Date;
+        return GoldForecastRecords().LastOrDefault(r => r.Code == code && r.Days == 1 && r.BaseDate.Date == baseDate);
     }
 
     // ---------------------------------------------------------------- red / green gold bubbles
@@ -240,21 +529,16 @@ public partial class MainWindow
         double previous = goldLastRecorded;
         goldLastRecorded = quote.Price;
         goldToday.Add((local, quote.Price));
-        if (goldToday.Count > 3000) goldToday.RemoveRange(0, goldToday.Count - 3000);
+        if (goldToday.Count > 60000) goldToday.RemoveRange(0, goldToday.Count - 60000); // more than a day of changes every second
         string delta = double.IsNaN(previous) ? "" : $"（{quote.Price - previous:+0.00;-0.00}）";
         goldChanges.Add($"{local:HH:mm:ss}  {quote.Price:0.00}{delta}");
         if (goldChanges.Count > 50) goldChanges.RemoveRange(0, goldChanges.Count - 50);
         try
         {
-            var info = new FileInfo(GoldRecordFile);
-            if (info.Exists && info.Length > 5 * 1024 * 1024) File.Move(GoldRecordFile, "gold-records.old.csv", true);
-            if (!File.Exists(GoldRecordFile))
-                File.WriteAllText(GoldRecordFile, "记录时间,行情时间,品种,最新价,涨跌,涨跌幅%,开盘,昨收,最高,最低\r\n", new UTF8Encoding(true));
             string F(double v) => v.ToString("0.00", CultureInfo.InvariantCulture);
-            File.AppendAllText(GoldRecordFile, string.Join(",", local.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
+            CompanionGoldRecords.Append("", local, string.Join(",", local.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
                 goldSnapshot.Length > 0 ? goldSnapshot : quote.Time, quote.Variety, F(quote.Price), F(quote.UpDown),
-                quote.Percent.ToString("0.00", CultureInfo.InvariantCulture), F(quote.Open), F(quote.PreClose), F(quote.High), F(quote.Low)) + "\r\n",
-                Encoding.UTF8);
+                quote.Percent.ToString("0.00", CultureInfo.InvariantCulture), F(quote.Open), F(quote.PreClose), F(quote.High), F(quote.Low)));
         }
         catch { } // the record is a convenience; the live price still works
     }
@@ -267,15 +551,11 @@ public partial class MainWindow
         goldChanges.Clear();
         try
         {
-            if (!File.Exists(GoldRecordFile)) return;
             string variety = CompanionGoldFeed.Varieties.FirstOrDefault(v => v.Code == preferences.GoldVariety).Name?.Split('（')[0] ?? "";
             double previous = double.NaN;
-            foreach (var line in File.ReadLines(GoldRecordFile, Encoding.UTF8).Skip(1))
+            foreach (var (time, price) in CompanionGoldRecords.Read("", variety, goldDay, 8L << 20))
             {
-                var parts = line.Split(',');
-                if (parts.Length < 4 || parts[2] != variety) continue;
-                if (!DateTime.TryParseExact(parts[0], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
-                    || time.Date != goldDay || !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var price)) continue;
+                if (time.Date != goldDay) continue;
                 goldToday.Add((time, price));
                 goldChanges.Add($"{time:HH:mm:ss}  {price:0.00}" + (double.IsNaN(previous) ? "" : $"（{price - previous:+0.00;-0.00}）"));
                 previous = price;
@@ -295,7 +575,7 @@ public partial class MainWindow
             var first = goldToday[0];
             text.Append($"；从 {first.Local:HH:mm} 记到现在 {q.Price - first.Price:+0.00;-0.00}");
         }
-        text.Append(CompanionGoldFeed.MarketOpen(DateTime.Now) ? "。" : "（现在休市，是最近的收盘价）。");
+        text.Append(GoldMarketNote());
         return text.ToString();
     }
 
@@ -313,6 +593,7 @@ public partial class MainWindow
         if (IsGoldForecastAsk(message) || GoldAdviceAsk.IsMatch(message)) { AnswerGoldForecast(message); return true; }
         if (preferences.GoldWatch && goldQuote == null && !goldFetching) _ = FetchGold(false);
         MaybeRefreshGoldFactors();
+        MaybeRefreshGoldIndicative();
         ChatReply(message, GoldTodayText(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : "余额-数金皱眉", remember: false);
         return true;
     }
@@ -321,7 +602,7 @@ public partial class MainWindow
     private void AddGoldSettings(StackPanel page, Action<string> section, Action<string> note, Func<string, bool, Action<bool>, CheckBox> toggle)
     {
         section("招商银行金价");
-        toggle("实时监测招商银行黄金行情（数据来自招行一网通「黄金市场行情」，价格每次变化都记到本机 data\\gold-records.csv）",
+        toggle("实时监测招商银行黄金行情（数据来自招行一网通「黄金市场行情」，价格每次变化都记到本机 data\\gold-records 文件夹，每月一个 CSV）",
             preferences.GoldWatch, v => { preferences.GoldWatch = v; if (v) nextGoldFetch = DateTime.UtcNow; });
         StackPanel Row() { var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) }; page.Children.Add(row); return row; }
         TextBlock Caption(string text, double width = 90) => new() { Text = text, Width = width, VerticalAlignment = VerticalAlignment.Center };
@@ -341,6 +622,9 @@ public partial class MainWindow
             preferences.GoldVariety = code;
             goldQuote = null;
             goldAnnounced = goldLastRecorded = double.NaN;
+            goldLevelState.Clear(); // the levels belong to the price of one variety
+            goldIndicative = null;
+            goldWeekKey = "";
             LoadGoldToday();
             nextGoldFetch = DateTime.UtcNow;
             nextGoldHistoryTry = DateTime.MinValue;
@@ -384,8 +668,31 @@ public partial class MainWindow
         third.Children.Add(Level(preferences.GoldAlertHigh, v => preferences.GoldAlertHigh = v));
         third.Children.Add(Caption("计划买入价（低于时提醒）", 170));
         third.Children.Add(Level(preferences.GoldAlertLow, v => preferences.GoldAlertLow = v));
+        var fourth = Row();
+        fourth.Children.Add(Caption("其他到价提醒", 100));
+        var levels = new TextBox { Width = 230, Text = preferences.GoldAlertLevels, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(4, 2, 4, 2) };
+        string levelsShown = levels.Text;
+        levels.LostFocus += (_, _) =>
+        {
+            if (levels.Text.Trim() == levelsShown) return;
+            levels.Text = levelsShown = CompanionGoldFeed.FormatLevels(CompanionGoldFeed.ParseLevels(levels.Text));
+            if (levelsShown == preferences.GoldAlertLevels) return;
+            preferences.GoldAlertLevels = levelsShown;
+            SaveCompanion();
+            goldPanelView?.Invoke();
+        };
+        fourth.Children.Add(levels);
+        fourth.Children.Add(Caption("多个价位用空格隔开（最多 8 个），涨过或跌破都提醒", 330));
         page.Children.Add(new TextBlock { Text = "留空 = 不提醒。金价面板里也能改，并能看到离现价多远、按波动粗算的触及可能性。", FontSize = 11,
             Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) });
+        var fifth = Row();
+        fifth.Children.Add(Caption("当日涨跌幅每到", 100));
+        fifth.Children.Add(Choice(CompanionPreferences.GoldPercentSteps.Select(p => (p, p > 0 ? p.ToString("0.#", CultureInfo.InvariantCulture) + "%" : "不提醒")).ToList(),
+            preferences.GoldPercentAlert, p => preferences.GoldPercentAlert = p));
+        fifth.Children.Add(Caption("的整数倍时提醒一次（选 1%：涨跌到 1%、2%、3%……各说一次）", 380));
+        toggle("收盘小结：每个交易日 15:30 收盘后，说一句今天的涨跌、最高最低，以及上个交易日推测的区间准不准",
+            preferences.GoldCloseSummary, v => preferences.GoldCloseSummary = v);
 
         var summary = new TextBlock { Text = GoldSummary(), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 2) };
         page.Children.Add(summary);
@@ -403,17 +710,26 @@ public partial class MainWindow
         });
         refresh.Margin = new Thickness(0, 0, 8, 0);
         buttons.Children.Add(refresh);
-        buttons.Children.Add(BigBlueFish.Deployment.ModernUI.Button("打开记录文件", () =>
-        {
-            try
-            {
-                var path = System.IO.Path.GetFullPath(GoldRecordFile);
-                Process.Start(new ProcessStartInfo("explorer.exe", File.Exists(path) ? $"/select,\"{path}\"" : $"\"{System.IO.Path.GetDirectoryName(path)}\"") { UseShellExecute = true });
-            }
-            catch { }
-        }));
+        buttons.Children.Add(BigBlueFish.Deployment.ModernUI.Button("打开记录文件夹", OpenGoldRecords));
         AddGoldForecastSettings(page);
-        note(goldStatus + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按选的频率更新；休市时价格不动，最多每 10 分钟看一次（选每小时、每天时照选的来）。右键鱼鱼「招行金价」，她用气泡告诉你现价和今天的预计区间；「金价面板…」用表格看金价变化、预测、买卖参考和判断依据；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
+        var (recordFiles, recordBytes) = CompanionGoldRecords.Size("");
+        note(goldStatus + GoldFeedNote() + " 交易时段（9:00–11:30、13:30–15:30、20:00–次日 2:30）按选的频率更新；休市或节假日价格不动，最多每 10 分钟看一次，"
+            + "开盘和收盘时会准点再看（选每小时、每天时照选的来）；连不上时隔 5 秒、15 秒、1 分钟、5 分钟、10 分钟再试。"
+            + (recordFiles > 0 ? $"价格记录按月保存，不会自动删除：现在 {recordFiles} 个月、共 {recordBytes / 1048576.0:0.0} MB。" : "")
+            + "右键鱼鱼「招行金价」，她用气泡告诉你现价和今天的预计区间；「金价面板…」用表格看金价变化、预测、买卖参考和判断依据；聊天时问「金价多少」「明天金价会涨吗」「黄金下个月走势」也行。");
+    }
+
+    // This month's record selected in Explorer (or the folder, or the data folder while nothing has been recorded yet).
+    private void OpenGoldRecords()
+    {
+        try
+        {
+            string file = System.IO.Path.GetFullPath(CompanionGoldRecords.MonthFile("", DateTime.Now));
+            string folder = System.IO.Path.GetDirectoryName(file)!;
+            string argument = File.Exists(file) ? $"/select,\"{file}\"" : $"\"{(Directory.Exists(folder) ? folder : Environment.CurrentDirectory)}\"";
+            Process.Start(new ProcessStartInfo("explorer.exe", argument) { UseShellExecute = true });
+        }
+        catch { }
     }
 
     // Today's price line (records since midnight), drawn small under the summary.
@@ -432,10 +748,16 @@ public partial class MainWindow
         if (max - min < 0.01) { max += 0.5; min -= 0.5; }
         var start = goldToday[0].Local; var end = goldToday[^1].Local;
         double span = Math.Max(1, (end - start).TotalSeconds);
-        var line = new Polyline { StrokeThickness = 1.6, Stroke = goldToday[^1].Price >= goldToday[0].Price ? new SolidColorBrush(Color.FromRgb(214, 64, 64)) : new SolidColorBrush(Color.FromRgb(40, 150, 90)) };
-        foreach (var (time, price) in goldToday)
-            line.Points.Add(new Point(6 + (time - start).TotalSeconds / span * (width - 12), 8 + (max - price) / (max - min) * (height - 16)));
-        canvas.Children.Add(line);
+        var stroke = goldToday[^1].Price >= goldToday[0].Price ? new SolidColorBrush(Color.FromRgb(214, 64, 64)) : new SolidColorBrush(Color.FromRgb(40, 150, 90));
+        // A day of changes every second is thinned for drawing, and the line is not drawn across a pause (lunch break, she was off).
+        var points = CompanionGoldRecords.Thin(goldToday, 600);
+        Polyline? line = null;
+        for (int i = 0; i < points.Count; i++)
+        {
+            if (line == null || points[i].Time - points[i - 1].Time > TimeSpan.FromMinutes(20))
+                canvas.Children.Add(line = new Polyline { StrokeThickness = 1.6, Stroke = stroke });
+            line.Points.Add(new Point(6 + (points[i].Time - start).TotalSeconds / span * (width - 12), 8 + (max - points[i].Price) / (max - min) * (height - 16)));
+        }
         var labels = new TextBlock { Text = $"{max:0.00}", FontSize = 10, Foreground = Brushes.SlateGray };
         Canvas.SetLeft(labels, 4); Canvas.SetTop(labels, 0);
         canvas.Children.Add(labels);

@@ -17,6 +17,10 @@ internal sealed record GoldForecastRow(string Label, int Days, double Center, do
 internal sealed record GoldForecast(string Code, double Base, bool LiveBase, DateTime BaseDate, IReadOnlyList<GoldForecastRow> Rows,
     double DailyVolatility, double LongVolatility, double AnnualDrift, string Trend, int HistoryDays, DateTime FirstDay)
 {
+    // What the base price is when it is not simply the live quote (the indicative price while the market is shut).
+    internal string BaseNote { get; init; } = "";
+    // The trading day of BaseDate has not closed yet: its own close is the "session" row, and 下个交易日 is the day after it.
+    internal bool Pending { get; init; }
     internal GoldForecastRow? Row(int days) => Rows.FirstOrDefault(r => r.Days == days);
     internal double Years => Math.Max(0, (BaseDate - FirstDay).TotalDays / 365.25);
 }
@@ -32,15 +36,21 @@ internal sealed record GoldForecastScore(int Days, int Recorded, int Checked, in
 //    (persistence 0.985 per day), the way calm or stormy spells fade;
 //  - trend: half of the long-run average daily return (gold's long drift, shrunk because the future one is unknown), plus
 //    ±10 %/year of uncertainty about that trend, which mostly widens the one-year range;
-//  - ranges: ±1.0 σ (≈68 %) and ±2.2 σ (≈95 %; wider than 1.96 because gold has fat tails).
-// Back-tested on SGE Au99.99 daily closes 2013–2026 (re-estimated every day): the 1-day / 1-week / 1-month ranges held
-// 72–75 % / about 95 % of the time (about 68 % / 90 % for a month in the stormy last three years); the 1-year range held
-// 66 % / 95 % overall but only 17 % / 73 % through the 2024–2025 bull run, which is why the one-year line is only a rough idea.
+//  - ranges: ±0.9 σ for a day and a week, ±0.95 σ for a month, ±1.0 σ for a year (≈68 %; the middle of gold's returns is
+//    more peaked than a normal curve, so ±1 σ held too often) and ±2.2 σ (≈95 %; wider than 1.96 because of the fat tails).
+// Back-tested on SGE Au99.99 daily closes 2011–2026 (re-estimated every day, November 2026): the 1-day / 1-week / 1-month
+// ranges held 70 % / 69 % / 69 % and about 95 % of the time (71 % / 68 % / 64 % and 95 % / 93 % / 90 % in the stormy three
+// years to November 2026); with ±1.0 σ they had held 72–75 %, i.e. the "68 %" range was about a tenth wider than it had to be.
+// The 1-year range held 65 % / 95 % overall but only 19 % / 72 % through the 2024–2026 bull run, which is why the one-year
+// line is only a rough idea. High / low based volatility (Garman–Klass) and empirical quantiles were tried and did not score
+// better, so the model stays this simple.
 internal static class CompanionGoldForecast
 {
     internal const int YearDays = 244; // SGE trading days per year
     internal static readonly (string Label, int Days)[] Horizons = [("下个交易日", 1), ("一周", 5), ("一个月", 21), ("一年", YearDays)];
-    internal const double Z68 = 1.0, Z95 = 2.2;
+    internal const double Z95 = 2.2;
+    // Half-width of the "68 %" range in σ; days = 0 is today's session.
+    internal static double Z68(int days) => days <= 5 ? 0.90 : days <= 21 ? 0.95 : 1.0;
     private const double Lambda = 0.97, Persistence = 0.985, DriftShrink = 0.5, DriftUncertainty = 0.10;
     private const int LongWindow = 750, SeedDays = 20;
     internal const int MinimumDays = 300;
@@ -105,7 +115,7 @@ internal static class CompanionGoldForecast
     private static string Number(double value) => value.ToString("0.####", CultureInfo.InvariantCulture);
 
     // basePrice: the live quote when there is one, otherwise (0) the last close. Horizons count closes after the last bar;
-    // while that bar is still trading, about half a day more of movement is still to come and is added to every horizon.
+    // while that bar is still trading, the part of its session that is still to come is added to every horizon.
     internal static GoldForecast? Compute(string code, IReadOnlyList<GoldBar> bars, double basePrice, bool liveBase, DateTime now)
     {
         int n = bars.Count;
@@ -128,7 +138,7 @@ internal static class CompanionGoldForecast
         longVariance /= window - 1;
 
         double drift = DriftShrink * returns.Average();
-        double extra = Final(bars[^1], now) ? 0 : 0.5;
+        double extra = Final(bars[^1], now) ? 0 : Math.Clamp(NextClose(now).Hours / SessionHours, 0, 1);
         var rows = new List<GoldForecastRow>();
         foreach (var (label, days) in Horizons)
         {
@@ -140,11 +150,12 @@ internal static class CompanionGoldForecast
             double center = basePrice * Math.Exp(drift * h);
             int up = 0, total = 0;
             for (int t = 0; t + days < n; t++) { total++; if (closes[t + days] > closes[t]) up++; }
-            rows.Add(new GoldForecastRow(label, days, center, center * Math.Exp(-Z68 * sigma), center * Math.Exp(Z68 * sigma),
+            double z68 = Z68(days);
+            rows.Add(new GoldForecastRow(label, days, center, center * Math.Exp(-z68 * sigma), center * Math.Exp(z68 * sigma),
                 center * Math.Exp(-Z95 * sigma), center * Math.Exp(Z95 * sigma), total > 0 ? (double)up / total : double.NaN, sigma));
         }
         return new GoldForecast(code, basePrice, liveBase, bars[^1].Date, rows, Math.Sqrt(variance), Math.Sqrt(longVariance),
-            Math.Exp(drift * YearDays) - 1, Trend(closes, basePrice), n, bars[0].Date);
+            Math.Exp(drift * YearDays) - 1, Trend(closes, basePrice), n, bars[0].Date) { Pending = extra > 0 };
     }
 
     // Where the price stands against its 20 / 60 / 250-day averages, the last month's move and the distance to the 1-year high.
@@ -218,11 +229,50 @@ internal static class CompanionGoldForecast
         var (label, hours) = NextClose(now);
         if (!(price > 0)) price = forecast.Base;
         double sigma = forecast.DailyVolatility * Math.Sqrt(Math.Max(hours, .25) / SessionHours);
-        return new GoldForecastRow(label, 0, price, price * Math.Exp(-Z68 * sigma), price * Math.Exp(Z68 * sigma),
+        double z68 = Z68(0);
+        return new GoldForecastRow(label, 0, price, price * Math.Exp(-z68 * sigma), price * Math.Exp(z68 * sigma),
             price * Math.Exp(-Z95 * sigma), price * Math.Exp(Z95 * sigma), double.NaN, sigma);
     }
 
     internal static string Unit(string code) => code.StartsWith("AG", StringComparison.Ordinal) ? "元/千克" : "元/克";
+
+    // The trading day a moment belongs to: the night session (from 20:00) already counts for the next weekday.
+    internal static DateTime TradingDay(DateTime time)
+    {
+        var day = time.TimeOfDay >= new TimeSpan(19, 0, 0) ? time.Date.AddDays(1) : time.Date;
+        while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) day = day.AddDays(1);
+        return day;
+    }
+
+    // The daily bars with the current trading day brought up to the live quote, so that today's move counts in the volatility
+    // at once and the horizons are counted from today whether or not today's bar has been downloaded yet. The quote's previous
+    // close says which bar it continues: the last one (today's bar is not there yet and is added) or the one before it (today's
+    // bar is there and gets the live price). When it matches neither (bars missing in between), the bars are left alone.
+    internal static IReadOnlyList<GoldBar> WithLive(IReadOnlyList<GoldBar> bars, double price, double open, double high, double low,
+        double previousClose, DateTime now)
+    {
+        if (bars.Count < 2 || !(price > 0) || !(previousClose > 0)) return bars;
+        static bool Same(double a, double b) => Math.Abs(a - b) <= Math.Max(0.011, b * 0.0002);
+        var last = bars[^1];
+        bool continuesLast = Same(previousClose, last.Close), isLast = Same(previousClose, bars[^2].Close);
+        // both: the price has not moved from the previous close yet (the first minutes of a session), or two closes in a row are equal
+        if (continuesLast && isLast) { continuesLast = last.Date.Date < TradingDay(now); isLast = !continuesLast; }
+        var result = bars.ToList();
+        if (isLast)
+            result[^1] = last with { Close = price, High = Math.Max(last.High, price), Low = last.Low > 0 ? Math.Min(last.Low, price) : price };
+        else if (continuesLast)
+        {
+            var day = TradingDay(now);
+            if (day <= last.Date.Date)
+            {
+                day = last.Date.Date.AddDays(1);
+                while (day.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) day = day.AddDays(1);
+            }
+            result.Add(new GoldBar(day, open > 0 ? open : price, price, Math.Max(high, price), low > 0 ? Math.Min(low, price) : price));
+        }
+        else return bars;
+        return result;
+    }
 
     // ------------------------------------------------------------------ the record of past forecasts
     internal const string RecordHeader = "预测时间,品种,基准日,交易日数,基准价,中间值,68%下限,68%上限,95%下限,95%上限";

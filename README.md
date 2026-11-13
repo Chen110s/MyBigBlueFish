@@ -33,10 +33,10 @@
 - **定时提醒**：右键「提醒事项」，或在聊天里说「30分钟后提醒我开会」「明天早上8:30叫我起床」，重启后仍然保留。
 - **游戏陪玩**：识别常见游戏后，全屏也不躲起来、鼠标点击会穿过她和她的气泡（切到游戏立即生效，不会挡操作）、不占用显卡，偶尔加油、每小时提醒休息；可选识别「胜利 / 失败」画面并做出反应。
 - **置顶 / 不置顶**：右键或设置里切换；不置顶时她待在其他窗口后面，点她或托盘图标叫到前面，有提醒时暂时跳到最前。
-- **招行金价**：实时获取招商银行黄金行情（Au99.99 等），更新频率可在设置里选每秒 / 每分钟 / 每十分钟 / 每小时 / 每天；每次变化记到本机 CSV，涨跌较大或到达你设的价位时鱼鱼提醒，右键或聊天随时查看。
+- **招行金价**：实时获取招商银行黄金行情（Au99.99 等），更新频率可在设置里选每秒 / 每分钟 / 每十分钟 / 每小时 / 每天；每次变化记到本机 CSV（每月一个文件，不自动删除），涨跌较大、到达你设的价位（可设多个）或当日涨跌幅到一定百分比时鱼鱼提醒，每天收盘后有一句小结，右键或聊天随时查看。节假日休市会自动降频，连不上时逐步退避；休市时附一个按国际金价和汇率折算的参考价。
 - **金价变动提醒**：设置里可开关；价格每变一次，鱼鱼用气泡报当时的金价——涨了是红字，跌了是绿字；玩游戏、专注、聊天时不打扰。
 - **金价推测**：根据同一品种 2010 年以来的历史日线和波动率模型，推算下个交易日、一周、一个月、一年后的价格区间（按历史波动，约 68% / 95% 的情况会落在其中），附均线趋势和历史上涨比例；每天的推测自动记录、到期对答案。聊天问「明天金价会涨吗」「黄金下个月走势」即可。统计推算，不构成投资建议。
-- **金价面板**：右键「招行金价」时鱼鱼用气泡报现价和今天收盘的预计区间；右键「金价面板…」按「金价变化 → 金价预测 → 买卖参考 → 判断依据」用表格展示实时行情、价格走势折线图、今天 / 天 / 周 / 月 / 年推测、判断因素（国际金价、美联储预期、美元、避险、央行购金、人民币汇率、产品点差）、国内金价拆解、点差回本、你的计划买入 / 卖出价和历史参考价位。只提供数据和统计，不给买卖建议。
+- **金价面板**：右键「招行金价」时鱼鱼用气泡报现价和今天收盘的预计区间；右键「金价面板…」按「金价变化 → 金价预测 → 买卖参考 → 判断依据」用表格展示实时行情、价格走势折线图（今天 / 近 7 天用交易所分钟线，鱼鱼没开着也不断）、今天 / 天 / 周 / 月 / 年推测和对答案、判断因素（国际金价、美联储预期、美元、避险、央行购金、人民币汇率、产品点差）、国内金价拆解、点差回本、你的计划买入 / 卖出价和历史参考价位。只提供数据和统计，不给买卖建议。
 - **动画自检与自动恢复**：动画没播出来时，鱼鱼自己检查解码器和动画文件、记下退出码和资源占用到 `data\companion-errors.log`，隔几秒自动重试；一直失败才停下并说明原因，之后每分钟再试，好了自动恢复，不用重启。
 - **互动手感**（参考 [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)）：鼠标在她左右时转向那一侧、靠近时轻轻倾斜；点头、身体、尾巴各有不同回应并带 Q 弹回弹；拖动时挤压拉伸，快速甩出会变成球滑出去、碰到屏幕边反弹；拖出屏幕就藏到边上，鼠标移到那条边时探出头来。
 - **点屏幕让她跑过去**：单击鱼鱼后再点屏幕任意位置，她跑过去挥手打招呼（5 秒内有效，右键取消）。
@@ -56,10 +56,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.19
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.20
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.19` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.20` 即为增强版。
 
 增强版基于官方 v1.0.5。升级到官方新版本（应用内「检查更新」或重新运行官方安装器）会覆盖增强版的程序文件，官方版还会清掉增强功能的设置；所以增强版在打开更新窗口前会先提醒你。
 
@@ -256,10 +256,10 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Timed reminders**: right-click "提醒事项" (Reminders) or say in the chat "30分钟后提醒我开会" (remind me about the meeting in 30 minutes) or "明天早上8:30叫我起床" (wake me up at 8:30 tomorrow); reminders survive restarts.
 - **Game companion**: when a common game is in front she stays visible in fullscreen, lets every mouse click pass through her and her speech bubble (from the moment you switch to the game), keeps the GPU free, cheers now and then and suggests a break every hour; optionally she can recognise victory / defeat screens and react.
 - **Always on top or not**: switch it from the right-click menu or in settings. When she is not on top she stays behind other windows; clicking her or the tray icon brings her forward, and reminders lift her to the front for a moment.
-- **CMB gold price**: follows China Merchants Bank's gold quotes (Au99.99 and others), updating every second, minute, ten minutes, hour or day as you choose in the settings; records every change in a local CSV, tells you about big moves or the price levels you set, and answers in the menu or in chat.
+- **CMB gold price**: follows China Merchants Bank's gold quotes (Au99.99 and others), updating every second, minute, ten minutes, hour or day as you choose in the settings; records every change in a local CSV (one file a month, never deleted by the program), tells you about big moves, the price levels you set (as many as eight more besides the planned buy / sell prices) and the day's move reaching a chosen percentage, sums the day up after the close, and answers in the menu or in chat. On public holidays, when the market stands still, she checks less often; when the bank cannot be reached she backs off step by step; while the market is shut she adds an indicative price converted from international gold and the yuan.
 - **Gold change alerts**: an on/off setting; every time the price changes she shows the current price in her bubble — red text when it rose, green when it fell. Quiet while you game, focus or chat.
 - **Gold price outlook**: from the same contract's daily history since 2010 and a volatility model, she estimates the price range for the next trading day, a week, a month and a year (ranges that held the price about 68 % / 95 % of the time historically), with the moving-average trend and how often the price rose over the same span in the past; each day's estimate is recorded and checked once it comes due. Ask "明天金价会涨吗" (will gold rise tomorrow?) or "黄金下个月走势" (gold next month?). It is a statistical estimate, not investment advice.
-- **Gold panel**: right-click "招行金价" and she tells you the price and today's expected closing range in a bubble; right-click "金价面板…" for a window of tables ordered price moves → outlook → buy / sell references → driving factors — live quotes, a price chart, the day / week / month / year outlook, the driving factors (international gold, Fed expectations via Treasury yields, the dollar, risk sentiment, central-bank buying, the yuan, the product spread), how the domestic price is made up, the spread's break-even, your own planned buy / sell prices and historical reference levels. Data and statistics only; it gives no buy or sell recommendations.
+- **Gold panel**: right-click "招行金价" and she tells you the price and today's expected closing range in a bubble; right-click "金价面板…" for a window of tables ordered price moves → outlook → buy / sell references → driving factors — live quotes, a price chart (today and the last 7 days from the exchange's minute bars, so there are no holes while she was not running), the day / week / month / year outlook and how earlier ones turned out, the driving factors (international gold, Fed expectations via Treasury yields, the dollar, risk sentiment, central-bank buying, the yuan, the product spread), how the domestic price is made up, the spread's break-even, your own planned buy / sell prices and historical reference levels. Data and statistics only; it gives no buy or sell recommendations.
 - **Animation self-check and recovery**: when a clip fails to play she checks the decoder and the clip, logs the exit code and her resource use to `data\companion-errors.log` and retries after a few seconds; only if it keeps failing does she stop and say why, and she keeps retrying every minute and recovers by herself — no restart needed.
 - **Interaction feel** (ideas from [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)): she turns towards the side the cursor is on and leans towards it; clicks on her head, body or tail get different replies with a squash-and-stretch pop; she stretches while dragged, turns into a ball and bounces off the screen edges when flung, and hides at an edge when dragged off the screen, peeking out when the cursor comes near.
 - **Run to a point**: click her once, then click anywhere on the screen and she runs there and waves (within 5 seconds; right-click cancels).
@@ -279,10 +279,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.19
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.20
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.19` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.20` when the companion edition is running.
 
 The companion edition is built on official v1.0.5. Updating to a newer official version (in-app update or running a newer official installer) replaces its files, and the official version also drops the companion settings, so the companion edition asks before it opens the update window.
 

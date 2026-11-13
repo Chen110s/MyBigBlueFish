@@ -16,8 +16,9 @@ using System.Windows.Threading;
 namespace BigBlueFish.Windows;
 
 // 招行金价面板 (right-click 「招行金价」): everything about the watched variety in tables — live quotes, the trend chart,
-// the day / week / month / year ranges, the factors behind the price, how the domestic price is made up, the cost of the
-// spread, the owner's own planned prices and historical reference levels. Facts and statistics only; no buy / sell calls.
+// the day / week / month / year ranges and how earlier ones turned out, the factors behind the price, how the domestic price
+// is made up, the cost of the spread, the owner's own planned prices and alert levels, and historical reference levels.
+// Facts and statistics only; no buy / sell calls.
 public partial class MainWindow
 {
     private BigBlueFish.Deployment.ModernWindow? goldPanel;
@@ -92,25 +93,11 @@ public partial class MainWindow
         NotifyGoldViews();
     }
 
-    // CMB prices recorded in gold-records.csv for the last days (the 7-day chart).
+    // CMB prices she recorded in the last days (the 7-day chart when the minute bars cannot be had).
     private List<(DateTime Time, double Price)> GoldRecordsSince(DateTime from)
     {
-        var points = new List<(DateTime, double)>();
-        try
-        {
-            if (!File.Exists(GoldRecordFile)) return points;
-            string variety = GoldName.Split('（')[0];
-            foreach (var line in File.ReadLines(GoldRecordFile, Encoding.UTF8).Skip(1))
-            {
-                var parts = line.Split(',');
-                if (parts.Length < 4 || parts[2] != variety) continue;
-                if (!DateTime.TryParseExact(parts[0], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time)
-                    || time < from || !double.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var price) || price <= 0) continue;
-                points.Add((time, price));
-            }
-        }
-        catch { }
-        return points;
+        try { return CompanionGoldRecords.Read("", GoldName.Split('（')[0], from); }
+        catch { return new List<(DateTime, double)>(); }
     }
 
     // ---------------------------------------------------------------- the window
@@ -216,8 +203,10 @@ public partial class MainWindow
         Group("二、金价预测");
         // 3. forecast
         var forecastCard = Section("今天 / 天 / 周 / 月 / 年推测",
-            "按历史波动推算的价格区间：约 68% / 95% 的情况会落在其中。「今天收盘」按今天的波动和剩下的交易时间推算，中间值就是现价；其余周期的中间值只算了长期平均涨幅的一半，不代表看涨或看跌；周期越长越不准。");
+            "按历史波动推算的价格区间：约 68% / 95% 的情况会落在其中。「今天收盘」按今天的波动和剩下的交易时间推算，中间值就是现价；其余周期的中间值只算了长期平均涨幅的一半，不代表看涨或看跌；周期越长越不准。"
+            + "今天的涨跌会马上算进波动里；休市时中间值改用按国际价格和汇率折算的参考价。");
         var forecastNote = Note();
+        var scoreCard = Section("推测对答案", "每个交易日的第一次推测记在 data\\gold-forecasts.csv，到期后和实际收盘价比。68% 的区间长期应该有七成左右落在里面、95% 的区间九成多；次数少的时候只能当个参考。");
         Group("三、买卖参考", "帮你自己做决定的参考数据：你的计划价位、点差回本和历史价位。鱼鱼不做买卖推荐，买不买、什么时候买由你决定。");
         // 7. plan
         var planCard = Section("我的计划价位", "你自己定的价位：鱼鱼帮你盯着，到价提醒，并按波动粗算触及的可能性。买不买由你决定。");
@@ -228,6 +217,27 @@ public partial class MainWindow
         planRow.Children.Add(NumberBox(() => preferences.GoldAlertHigh, v => { preferences.GoldAlertHigh = v; goldHighArmed = true; }));
         body.Children.Remove(planRow);
         body.Children.Insert(body.Children.IndexOf(planCard), planRow);
+        var levelRow = InputRow();
+        levelRow.Children.Add(Caption("其他到价提醒"));
+        string levelsShown = preferences.GoldAlertLevels;
+        var levelBox = new TextBox { Width = 240, Text = levelsShown, Padding = new Thickness(4, 2, 4, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 6, 0) };
+        void CommitLevels()
+        {
+            if (levelBox.Text.Trim() == levelsShown) return;
+            levelBox.Text = levelsShown = CompanionGoldFeed.FormatLevels(CompanionGoldFeed.ParseLevels(levelBox.Text));
+            if (levelsShown == preferences.GoldAlertLevels) return;
+            preferences.GoldAlertLevels = levelsShown;
+            SaveCompanion();
+            goldPanelView?.Invoke();
+        }
+        levelBox.LostFocus += (_, _) => CommitLevels();
+        levelBox.KeyDown += (_, e) => { if (e.Key == Key.Enter) { e.Handled = true; CommitLevels(); } };
+        boxes.Add(() => { if (!levelBox.IsKeyboardFocusWithin && levelBox.Text.Trim() == levelsShown) levelBox.Text = levelsShown = preferences.GoldAlertLevels; });
+        window.Closing += (_, _) => CommitLevels();
+        levelRow.Children.Add(levelBox);
+        levelRow.Children.Add(new TextBlock { Text = "（多个价位用空格隔开，最多 8 个；涨过或跌破都提醒）", Foreground = GoldMuted, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+        body.Children.Remove(levelRow);
+        body.Children.Insert(body.Children.IndexOf(planCard), levelRow);
         var planNote = Note();
         // 6. spread
         var spreadCard = Section("点差成本与回本", "点差 = 买入价 − 卖出（回购）价。假设按现价买入、到时按市场价卖出，价格要高过「现价 + 点差」才能覆盖这笔成本。下面的概率只看波动、不计任何趋势。");
@@ -257,11 +267,12 @@ public partial class MainWindow
                 button.Background = on ? GoldAccent : Brushes.White;
                 button.Foreground = on ? Brushes.White : GoldInk;
             }
-            var (points, daily, note) = GoldChartPoints();
+            var chart = GoldChartPoints();
             // Scales down instead of being cut off when the window is narrower than the chart.
-            chartHost.Child = new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, Child = BuildGoldTrend(points, daily, daily ? goldForecast : null, preferences.GoldAlertLow, preferences.GoldAlertHigh,
-                daily ? GoldMovingAverage(points.Count) : null) };
-            chartNote.Text = note;
+            chartHost.Child = new Viewbox { Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left,
+                Child = BuildGoldTrend(chart, chart.Daily ? goldForecast : null, preferences.GoldAlertLow, preferences.GoldAlertHigh, GoldLevels(),
+                    chart.Daily ? GoldMovingAverage(chart.Points.Count) : null) };
+            chartNote.Text = chart.Note;
         }
 
         void Render()
@@ -287,23 +298,41 @@ public partial class MainWindow
                 rows.Add(new GoldCell[] { new(x.Variety + (vc == code ? "（鱼鱼在盯）" : ""), Strong: vc == code), new(x.Price.ToString("0.00", CultureInfo.InvariantCulture), Tone(x.UpDown), true),
                     new(x.UpDown.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture), Tone(x.UpDown)), new(Pct(x.Percent), Tone(x.UpDown)),
                     new(x.Open.ToString("0.00", CultureInfo.InvariantCulture)), new(x.PreClose.ToString("0.00", CultureInfo.InvariantCulture)),
-                    new(x.High.ToString("0.00", CultureInfo.InvariantCulture)), new(x.Low.ToString("0.00", CultureInfo.InvariantCulture)) });
+                    new(x.High.ToString("0.00", CultureInfo.InvariantCulture)), new(x.Low.ToString("0.00", CultureInfo.InvariantCulture)),
+                    new(x.Average > 0 ? x.Average.ToString("0.00", CultureInfo.InvariantCulture) : "—") });
             }
             if (rows.Count == 0) rows.Add(new GoldCell[] { new(goldOffline ? "测试模式下不联网" : "正在获取招行行情……", GoldMuted) });
-            quotes.Child = GoldTable(new[] { "品种", "最新价", "涨跌", "涨跌幅", "开盘", "昨收", "最高", "最低" }, new double[] { 190, 100, 90, 90, 90, 90, 90, 0 }, rows, selected);
-            quoteNote.Text = (goldSnapshot.Length > 0 ? $"行情时间 {goldSnapshot}。" : "") + goldStatus + " 黄金、铂金单位 元/克，白银 元/千克。"
-                + (CompanionGoldFeed.MarketOpen(DateTime.Now) ? "" : " 现在休市，显示的是最近的价格。");
+            quotes.Child = GoldTable(new[] { "品种", "最新价", "涨跌", "涨跌幅", "开盘", "昨收", "最高", "最低", "均价" }, new double[] { 180, 95, 80, 85, 85, 85, 85, 85, 0 }, rows, selected);
+            quoteNote.Text = goldStatus + " 黄金、铂金单位 元/克，白银 元/千克；均价是交易所当天的成交均价。" + GoldFeedNote();
 
             // 3. forecast
             if (f == null)
                 forecastCard.Child = GoldTable(new[] { "推测" }, new double[] { 0 }, new[] { new GoldCell[] { new(goldHistoryLoading ? "正在读取历史日线……" : goldOffline ? "测试模式下不联网。" : "还没有足够的历史日线（至少 300 个交易日）。", GoldMuted) } });
             else
                 forecastCard.Child = GoldTable(new[] { "周期", "中间值", "68% 的情况落在", "95% 的情况落在", "历史上同周期上涨占比" }, new double[] { 130, 120, 190, 190, 0 },
-                    (price > 0 ? new[] { CompanionGoldForecast.Session(f, price, DateTime.Now) } : Array.Empty<GoldForecastRow>()).Concat(f.Rows).Select(r => (IReadOnlyList<GoldCell>)new GoldCell[] { new(r.Label, Strong: true), new(P(r.Center)), new($"{P(r.Low68)} ～ {P(r.High68)}", Strong: true),
+                    (price > 0 ? new[] { CompanionGoldForecast.Session(f, f.LiveBase ? f.Base : price, DateTime.Now) } : Array.Empty<GoldForecastRow>()).Concat(f.Rows).Select(r => (IReadOnlyList<GoldCell>)new GoldCell[] { new(r.Label, Strong: true), new(P(r.Center)), new($"{P(r.Low68)} ～ {P(r.High68)}", Strong: true),
                         new($"{P(r.Low95)} ～ {P(r.High95)}", GoldMuted), new(double.IsFinite(r.UpShare) ? $"{r.UpShare * 100:0}%" : "—") }));
             forecastNote.Text = f == null ? goldHistoryStatus
-                : $"基准：{(f.LiveBase ? "招行现价" : $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘")} {P(f.Base)} {unit}；日波动 {f.DailyVolatility * 100:0.00}%（近 3 年平均 {f.LongVolatility * 100:0.00}%）。"
-                    + f.Trend + "\n" + GoldForecastScoreText() + " " + goldHistoryStatus;
+                : $"基准：{(!f.LiveBase ? $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘" : f.BaseNote.Length > 0 ? f.BaseNote : "招行现价")} {P(f.Base)} {unit}"
+                    + (GoldIndicativeNow() is { } indicative ? $"（最后成交 {P(indicative.Last)}；{GoldIndicativeText(indicative)}；只是折算参考，开盘以招行报价为准）" : "")
+                    + $"；日波动 {f.DailyVolatility * 100:0.00}%（近 3 年平均 {f.LongVolatility * 100:0.00}%）。" + f.Trend
+                    + (f.Pending ? $"\n{f.BaseDate.Month} 月 {f.BaseDate.Day} 日这个交易日还没收盘（夜盘算下一个交易日）：它的收盘看第一行，「下个交易日」是它之后的那个交易日。" : "")
+                    + "\n" + goldHistoryStatus;
+
+            // 3b. how earlier forecasts turned out
+            if (CompanionGoldForecast.HistoryCode(code) != code)
+                scoreCard.Child = GoldTable(new[] { "对答案" }, new double[] { 0 }, new[] { new GoldCell[] { new("Au100g 借用 Au99.99 的日线推算，不记录、不对答案。", GoldMuted) } });
+            else
+            {
+                var scores = CompanionGoldForecast.Score(GoldForecastRecords(), code, goldBars, DateTime.Now);
+                string Share(int inside, int total) => total > 0 ? $"{inside} 次（{inside * 100.0 / total:0}%）" : "—";
+                scoreCard.Child = scores.All(s => s.Recorded == 0)
+                    ? GoldTable(new[] { "对答案" }, new double[] { 0 }, new[] { new GoldCell[] { new("还没有记录。开着金价监测，每个交易日的第一次推测会记下来，最快下个交易日收盘后就能对上第一条。", GoldMuted) } })
+                    : GoldTable(new[] { "周期", "已记录", "已到期", "落在 68% 区间", "落在 95% 区间", "中间值平均偏差" }, new double[] { 130, 110, 110, 170, 170, 0 },
+                        scores.Select(s => (IReadOnlyList<GoldCell>)new GoldCell[] { new(CompanionGoldForecast.Horizons.First(h => h.Days == s.Days).Label, Strong: true),
+                            new($"{s.Recorded} 次"), new(s.Checked > 0 ? $"{s.Checked} 次" : "还没到期", s.Checked > 0 ? null : GoldMuted), new(Share(s.Inside68, s.Checked), Strong: s.Checked > 0),
+                            new(Share(s.Inside95, s.Checked)), new(s.Checked > 0 ? $"{s.MeanMissPercent:0.0}%" : "—") }));
+            }
 
             // 4. factors
             var factors = CompanionGoldFactors.Rows(code, goldFactorBars, price, preferences.GoldSpread, f);
@@ -372,7 +401,16 @@ public partial class MainWindow
             }
             Plan("计划买入", preferences.GoldAlertLow, true);
             Plan("计划卖出", preferences.GoldAlertHigh, false);
-            if (plans.Count == 0) plans.Add(new GoldCell[] { new("在上面填计划买入价或卖出价（留空 = 不设）", GoldMuted) });
+            foreach (double level in GoldLevels())
+            {
+                double distance = level - price;
+                string Touch(int days) => f?.Row(days) is { } r && price > 0 ? $"{CompanionGoldFactors.ChanceTouch(r, price, level) * 100:0}%" : "—";
+                plans.Add(new GoldCell[] { new("到价提醒", GoldAccent, true), new($"{P(level)} {unit}"),
+                    new(price > 0 ? $"{distance:+0.00;-0.00;0.00}（{distance / price * 100:+0.0;-0.0;0.0}%）" : "等行情", price > 0 ? Tone(distance) : GoldMuted),
+                    new(Touch(5)), new(Touch(21)),
+                    new(!preferences.GoldWatch ? "金价监测已关闭，不会提醒" : price <= 0 ? "等行情" : distance > 0 ? "涨到这个价时提醒" : "跌破这个价时提醒", GoldMuted) });
+            }
+            if (plans.Count == 0) plans.Add(new GoldCell[] { new("在上面填计划买入价、卖出价或其他到价提醒（留空 = 不设）", GoldMuted) });
             planCard.Child = GoldTable(new[] { "计划", "价位", "距现价", "一周内触及（统计）", "一个月内触及（统计）", "提醒" }, new double[] { 110, 140, 170, 140, 150, 0 }, plans);
             var planText = new StringBuilder("触及概率按模型的波动粗算期间内碰到这个价位的可能性（不考虑趋势），只作参考。");
             if (preferences.GoldAlertLow > 0 && preferences.GoldAlertHigh > preferences.GoldAlertLow)
@@ -397,9 +435,13 @@ public partial class MainWindow
         var refresh = BigBlueFish.Deployment.ModernUI.Button("全部刷新", async () =>
         {
             var tasks = new List<Task> { RefreshGoldFactors() };
+            // the minute bars and the indicative price are fetched again by the next drawing
+            goldIntradayFetched.Clear();
+            nextGoldIntradayTry = nextGoldIndicativeTry = goldIndicativeFetched = DateTime.MinValue;
             if (!goldFetching) tasks.Add(FetchGold(preferences.GoldWatch));
             if (goldHistoryTask is not { IsCompleted: false }) tasks.Add(RefreshGoldHistory(true));
             await Task.WhenAll(tasks);
+            MaybeRefreshGoldIndicative();
             goldPanelView?.Invoke();
         }, true);
         refresh.Margin = new Thickness(0, 0, 8, 0);
@@ -421,6 +463,7 @@ public partial class MainWindow
         {
             if (!preferences.GoldWatch && !goldFetching && CompanionGoldFeed.MarketOpen(DateTime.Now)) _ = FetchGold(false);
             MaybeRefreshGoldFactors();
+            MaybeRefreshGoldIndicative();
             goldPanelView?.Invoke(); // status, market hours and the other varieties also change without the watched price moving
             if (!goldOffline && GoldHistoryStale && DateTime.UtcNow >= nextGoldHistoryTry) _ = RefreshGoldHistory(false);
         };
@@ -442,6 +485,7 @@ public partial class MainWindow
         {
             if (goldQuote == null && !goldFetching) _ = FetchGold(preferences.GoldWatch);
             MaybeRefreshGoldFactors();
+            MaybeRefreshGoldIndicative();
             if ((goldBars.Count < CompanionGoldForecast.MinimumDays || GoldHistoryStale) && DateTime.UtcNow >= nextGoldHistoryTry) _ = RefreshGoldHistory(false);
         }
     }
@@ -480,28 +524,73 @@ public partial class MainWindow
     }
 
     // ---------------------------------------------------------------- the trend chart
-    // Points for the chosen range: CMB's own recorded prices for today / the last 7 days, the SGE daily closes otherwise
-    // (the last close replaced by the live CMB price on a trading day).
-    private (List<(DateTime Time, double Price)> Points, bool Daily, string Note) GoldChartPoints()
+    // What the chart draws. Daily and minute bars are spaced evenly (time without trading takes no room) and may carry marks:
+    // where a session or a trading day starts. Her own records are spaced by the clock.
+    private sealed record GoldChartData(List<(DateTime Time, double Price)> Points, bool Daily, bool Even,
+        List<(int Index, string Label)> Marks, string Note);
+
+    // The bars with the live quote as the newest point (same contract, market trading, and newer than the last bar).
+    private List<(DateTime Time, double Price)> GoldWithLivePoint(List<(DateTime Time, double Price)> bars, bool own)
     {
+        var points = bars.ToList();
+        if (own && points.Count > 0 && goldQuote is { } q && q.Code == preferences.GoldVariety && !GoldClosedNow
+            && goldFetchedAt > points[^1].Time && q.Price != points[^1].Price)
+            points.Add((goldFetchedAt, q.Price));
+        return points;
+    }
+
+    // Points for the chosen range: the exchange's minute bars for today and the last 7 days (her own recorded prices when the
+    // bars cannot be had), the daily closes otherwise (the last close replaced by the live CMB price on a trading day).
+    private GoldChartData GoldChartPoints()
+    {
+        var none = new List<(int, string)>();
+        bool own = CompanionGoldForecast.HistoryCode(preferences.GoldVariety) == preferences.GoldVariety;
+        string borrowed = own ? "" : " Au100g 没有单独的分钟线，画的是 Au99.99。";
         if (goldChartRange == "D")
-            return (goldToday.ToList(), false, "今天的招行实时报价（鱼鱼每次取到的价格变化都记在 data\\gold-records.csv 里）。");
+        {
+            MaybeRefreshGoldIntraday(1);
+            if (GoldIntradayBars(1) is { } minute)
+            {
+                var points = GoldWithLivePoint(minute, own);
+                var marks = new List<(int, string)> { (0, points[0].Time.AddMinutes(-1).ToString("HH:mm", CultureInfo.InvariantCulture)) };
+                marks.AddRange(CompanionGoldIntraday.SessionStarts(points).Select(i => (i, points[i].Time.AddMinutes(-1).ToString("HH:mm", CultureInfo.InvariantCulture))));
+                return new GoldChartData(points, false, true, marks,
+                    "本交易日的 1 分钟线（上海黄金交易所的成交价，来自东方财富；夜盘从前一晚 20:00 开始，算今天），交易中时最后一点是招行现价；竖线是各时段的开始，不交易的时间不占位置。" + borrowed);
+            }
+            return new GoldChartData(CompanionGoldRecords.Thin(goldToday, 1500), false, false, none,
+                "今天鱼鱼记下的招行实时报价（只有她开着的时候才有）。" + goldIntradayStatus);
+        }
         if (goldChartRange == "W")
         {
+            MaybeRefreshGoldIntraday(5);
+            var from = DateTime.Today.AddDays(-6);
+            if (GoldIntradayBars(5) is { } five)
+            {
+                var points = GoldWithLivePoint(five.Where(p => p.Time >= from).ToList(), own);
+                if (points.Count > 1)
+                {
+                    string Day(int i) => CompanionGoldForecast.TradingDay(points[i].Time.AddMinutes(-1)).ToString("M-d", CultureInfo.InvariantCulture);
+                    var marks = new List<(int, string)> { (0, Day(0)) };
+                    marks.AddRange(CompanionGoldIntraday.DayStarts(points).Select(i => (i, Day(i))));
+                    return new GoldChartData(points, false, true, marks,
+                        "近 7 天的 5 分钟线（上海黄金交易所的成交价，来自东方财富）；竖线分隔交易日（夜盘算下一个交易日），不交易的时间不占位置，所以鱼鱼没开着的时候也不会断。" + borrowed);
+                }
+            }
             // Re-read when the variety or the day changed since the last read.
             string weekKey = $"{preferences.GoldVariety}|{DateTime.Today:yyyy-MM-dd}";
-            if (goldWeekKey != weekKey) { goldWeekKey = weekKey; goldWeekRecords = GoldRecordsSince(DateTime.Today.AddDays(-6)); }
+            if (goldWeekKey != weekKey) { goldWeekKey = weekKey; goldWeekRecords = GoldRecordsSince(from); }
             var week = goldWeekRecords.Where(p => p.Time.Date < DateTime.Today).Concat(goldToday.Select(p => (Time: p.Local, p.Price))).OrderBy(p => p.Time).ToList();
-            return (week, false, "近 7 天鱼鱼记下的招行实时报价（只有她开着的时候才有记录，所以中间可能有空白）。");
+            return new GoldChartData(CompanionGoldRecords.Thin(week, 1500), false, false, none,
+                "近 7 天鱼鱼记下的招行实时报价（只有她开着的时候才有记录，没有记录的时段线会断开）。" + goldIntradayStatus);
         }
         int days = goldChartRange switch { "1M" => 21, "3M" => 63, "1Y" => CompanionGoldForecast.YearDays, "3Y" => 3 * CompanionGoldForecast.YearDays, _ => int.MaxValue };
         var bars = goldBars.Skip(days == int.MaxValue ? 0 : Math.Max(0, goldBars.Count - days)).ToList();
-        var points = bars.Select(b => (b.Date, b.Close)).ToList();
-        if (points.Count > 0 && goldQuote is { } q && q.Code == preferences.GoldVariety && points[^1].Date == DateTime.Today)
-            points[^1] = (points[^1].Date, q.Price);
-        string note = "日线：上海黄金交易所同一品种的每日收盘价（东方财富）；浅蓝线是 20 日均线，浅蓝色扇形是未来的 68% 推测区间，虚线是你的计划价位。"
+        var daily = bars.Select(b => (b.Date, b.Close)).ToList();
+        if (daily.Count > 0 && goldQuote is { } quote && quote.Code == preferences.GoldVariety && daily[^1].Date == DateTime.Today)
+            daily[^1] = (daily[^1].Date, quote.Price);
+        string note = "日线：上海黄金交易所同一品种的每日收盘价（东方财富）；浅蓝线是 20 日均线，浅蓝色扇形是未来的 68% 推测区间，虚线是你的计划价位和到价提醒。"
             + (preferences.GoldVariety == "AU100G" ? " Au100g 用 Au99.99 的日线。" : "");
-        return (points, true, note);
+        return new GoldChartData(daily, true, true, none, note);
     }
 
     // 20-day average aligned with the last `count` daily points.
@@ -518,9 +607,11 @@ public partial class MainWindow
         return result;
     }
 
-    private FrameworkElement BuildGoldTrend(List<(DateTime Time, double Price)> points, bool daily, GoldForecast? forecast, double planBuy, double planSell,
+    private FrameworkElement BuildGoldTrend(GoldChartData chart, GoldForecast? forecast, double planBuy, double planSell, IReadOnlyList<double> levels,
         List<double>? average)
     {
+        var points = chart.Points;
+        bool daily = chart.Daily, even = chart.Even;
         const double width = 820, height = 300, left = 66, right = 18, top = 26, bottom = 30;
         var canvas = new Canvas { Width = width, Height = height, Background = Brushes.White, ClipToBounds = true, HorizontalAlignment = HorizontalAlignment.Left };
         TextBlock Label(string text, double x, double y, Brush brush, double size = 11)
@@ -533,7 +624,7 @@ public partial class MainWindow
         }
         if (points.Count < 2)
         {
-            Label(goldChartRange is "D" or "W" ? "记录还不够画图：开着金价监测，过一会儿就有了。" : "等历史日线下载好再画图。", left, height / 2 - 10, GoldMuted, 13);
+            Label(goldChartRange is "D" or "W" ? "还画不了图：分钟线没拿到，鱼鱼自己的记录也还不够。开着金价监测，过一会儿就有了。" : "等历史日线下载好再画图。", left, height / 2 - 10, GoldMuted, 13);
             return canvas;
         }
 
@@ -547,16 +638,21 @@ public partial class MainWindow
         }
         double slots = points.Count - 1 + extra;
         double spanSeconds = Math.Max(1, (points[^1].Time - points[0].Time).TotalSeconds);
-        double X(int i) => left + (width - left - right) * (daily ? i / slots : (points[i].Time - points[0].Time).TotalSeconds / spanSeconds);
+        double X(int i) => left + (width - left - right) * (even ? i / slots : (points[i].Time - points[0].Time).TotalSeconds / spanSeconds);
         double XSlot(double slot) => left + (width - left - right) * slot / slots;
 
         double min = points.Min(p => p.Price), max = points.Max(p => p.Price);
         foreach (var r in fanRows) { min = Math.Min(min, r.Low68); max = Math.Max(max, r.High68); }
         double range = Math.Max(max - min, max * 0.002);
-        bool showBuy = planBuy > 0 && planBuy > min - range * .25 && planBuy < max + range * .25;
-        bool showSell = planSell > 0 && planSell > min - range * .25 && planSell < max + range * .25;
-        if (showBuy) { min = Math.Min(min, planBuy); max = Math.Max(max, planBuy); }
-        if (showSell) { min = Math.Min(min, planSell); max = Math.Max(max, planSell); }
+        // A planned price or an alert level is drawn when it is on the chart or close to it; it never stretches the scale far.
+        bool Near(double level) => level > 0 && level > min - range * .25 && level < max + range * .25;
+        bool showBuy = Near(planBuy), showSell = Near(planSell);
+        var shownLevels = levels.Where(Near).ToList();
+        foreach (double level in shownLevels.Concat(showBuy ? new[] { planBuy } : Array.Empty<double>()).Concat(showSell ? new[] { planSell } : Array.Empty<double>()))
+        {
+            min = Math.Min(min, level);
+            max = Math.Max(max, level);
+        }
         range = Math.Max(max - min, max * 0.002);
         min -= range * .06;
         max += range * .06;
@@ -570,9 +666,27 @@ public partial class MainWindow
         }
         string Stamp(DateTime t) => daily ? t.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : goldChartRange == "D" ? t.ToString("HH:mm", CultureInfo.InvariantCulture) : t.ToString("M-d HH:mm", CultureInfo.InvariantCulture);
-        Label(Stamp(points[0].Time), left, height - bottom + 8, GoldMuted);
-        Label(Stamp(points[points.Count / 2].Time), X(points.Count / 2) - 30, height - bottom + 8, GoldMuted);
-        Label(Stamp(points[^1].Time), X(points.Count - 1) - (extra > 0 ? 30 : 70), height - bottom + 8, GoldMuted);
+        if (chart.Marks.Count > 0)
+        {
+            // where each session / trading day starts, and the time of the newest point at the right end
+            double lastLabel = double.MinValue, end = X(points.Count - 1);
+            foreach (var (index, text) in chart.Marks)
+            {
+                double x = X(index);
+                if (index > 0)
+                    canvas.Children.Add(new Line { X1 = x, X2 = x, Y1 = top, Y2 = height - bottom, Stroke = GoldGridLine, StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 3, 3 } });
+                if (x - lastLabel < 44 || end - x < (goldChartRange == "D" ? 64 : 96)) continue; // room for the label at the right end
+                Label(text, x, height - bottom + 8, GoldMuted);
+                lastLabel = x;
+            }
+            Label(Stamp(points[^1].Time), end - (goldChartRange == "D" ? 30 : 62), height - bottom + 8, GoldInk);
+        }
+        else
+        {
+            Label(Stamp(points[0].Time), left, height - bottom + 8, GoldMuted);
+            Label(Stamp(points[points.Count / 2].Time), X(points.Count / 2) - 30, height - bottom + 8, GoldMuted);
+            Label(Stamp(points[^1].Time), X(points.Count - 1) - (extra > 0 ? 30 : 70), height - bottom + 8, GoldMuted);
+        }
 
         if (fanRows.Count > 0)
         {
@@ -592,24 +706,32 @@ public partial class MainWindow
             for (int i = 0; i < average.Count; i++) if (double.IsFinite(average[i])) ma.Points.Add(new Point(X(i), Y(average[i])));
             if (ma.Points.Count > 1) canvas.Children.Add(ma);
         }
-        void PlanLine(double price, Brush brush, string name)
+        void PlanLine(double price, Brush brush, string name, bool atRight)
         {
             double y = Y(price);
             canvas.Children.Add(new Line { X1 = left, X2 = width - right, Y1 = y, Y2 = y, Stroke = brush, StrokeThickness = 1.2, StrokeDashArray = new DoubleCollection { 5, 4 } });
-            Label($"{name} {CompanionGoldForecast.Price(price)}", left + 4, y - 16, brush);
+            Label($"{name} {CompanionGoldForecast.Price(price)}", atRight ? width - right - 96 : left + 4, y - 16, brush);
         }
-        if (showBuy) PlanLine(planBuy, GoldPlanBuy, "计划买入");
-        if (showSell) PlanLine(planSell, GoldPlanSell, "计划卖出");
+        foreach (double level in shownLevels) PlanLine(level, GoldMuted, "提醒", true);
+        if (showBuy) PlanLine(planBuy, GoldPlanBuy, "计划买入", false);
+        if (showSell) PlanLine(planSell, GoldPlanSell, "计划卖出", false);
 
-        var line = new Polyline { Stroke = points[^1].Price >= points[0].Price ? GoldUp : GoldDown, StrokeThickness = 1.8, StrokeLineJoin = PenLineJoin.Round };
-        for (int i = 0; i < points.Count; i++) line.Points.Add(new Point(X(i), Y(points[i].Price)));
-        canvas.Children.Add(line);
-        var lastDot = new Ellipse { Width = 7, Height = 7, Fill = line.Stroke };
+        // Her own records are not joined across a pause (the market was shut, or she was not running).
+        var stroke = points[^1].Price >= points[0].Price ? GoldUp : GoldDown;
+        Polyline? line = null;
+        for (int i = 0; i < points.Count; i++)
+        {
+            if (line == null || !even && points[i].Time - points[i - 1].Time > TimeSpan.FromMinutes(20))
+                canvas.Children.Add(line = new Polyline { Stroke = stroke, StrokeThickness = 1.8, StrokeLineJoin = PenLineJoin.Round });
+            line.Points.Add(new Point(X(i), Y(points[i].Price)));
+        }
+        var lastDot = new Ellipse { Width = 7, Height = 7, Fill = stroke };
         Canvas.SetLeft(lastDot, X(points.Count - 1) - 3.5);
         Canvas.SetTop(lastDot, Y(points[^1].Price) - 3.5);
         canvas.Children.Add(lastDot);
         double change = (points[^1].Price / points[0].Price - 1) * 100;
-        Label($"{Stamp(points[0].Time)} 到现在 {change.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture)}%　最高 {CompanionGoldForecast.Price(points.Max(p => p.Price))}　最低 {CompanionGoldForecast.Price(points.Min(p => p.Price))}",
+        string since = chart.Marks.Count > 0 ? chart.Marks[0].Label + (goldChartRange == "D" ? "" : " 开盘") : Stamp(points[0].Time);
+        Label($"{since} 到现在 {change.ToString("+0.00;-0.00;0.00", CultureInfo.InvariantCulture)}%　最高 {CompanionGoldForecast.Price(points.Max(p => p.Price))}　最低 {CompanionGoldForecast.Price(points.Min(p => p.Price))}",
             left, 4, GoldInk, 12);
 
         // Hover: the nearest point's time and price.
@@ -625,6 +747,7 @@ public partial class MainWindow
         canvas.Children.Add(cross);
         canvas.Children.Add(dot);
         canvas.Children.Add(tip);
+        string tipFormat = daily ? "yyyy-MM-dd" : even ? "M-d HH:mm" : "M-d HH:mm:ss";
         hit.MouseMove += (_, e) =>
         {
             double x = e.GetPosition(canvas).X;
@@ -639,7 +762,7 @@ public partial class MainWindow
             cross.X1 = cross.X2 = px;
             Canvas.SetLeft(dot, px - 4);
             Canvas.SetTop(dot, py - 4);
-            tipText.Text = $"{(daily ? points[best].Time.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : points[best].Time.ToString("M-d HH:mm:ss", CultureInfo.InvariantCulture))}　{points[best].Price:0.00}"
+            tipText.Text = $"{points[best].Time.ToString(tipFormat, CultureInfo.InvariantCulture)}　{points[best].Price:0.00}"
                 + (average != null && best < average.Count && double.IsFinite(average[best]) ? $"　20 日均线 {average[best]:0.00}" : "");
             Canvas.SetLeft(tip, Math.Min(px + 8, width - 250));
             Canvas.SetTop(tip, Math.Max(top, py - 30));

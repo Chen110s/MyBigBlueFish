@@ -21,6 +21,18 @@ internal sealed class CompanionPreferences
         return best;
     }
 
+    // 当日涨跌幅提醒: off, or every multiple of this many per cent; a saved value snaps to the nearest of these.
+    internal static readonly double[] GoldPercentSteps = [0, 0.5, 1, 1.5, 2, 3, 5];
+
+    internal static double GoldPercentStep(double percent)
+    {
+        if (!double.IsFinite(percent) || percent <= 0) return 0;
+        double best = 0, distance = double.MaxValue;
+        foreach (double option in GoldPercentSteps)
+            if (option > 0 && Math.Abs(option - percent) < distance) { distance = Math.Abs(option - percent); best = option; }
+        return best;
+    }
+
     public bool ModelEnabled { get; set; } = true;
     public bool GpuEnabled { get; set; } = true;
     public bool PublicInfo { get; set; } = true;
@@ -102,6 +114,11 @@ internal sealed class CompanionPreferences
     public double GoldAlertLow { get; set; }
     public double GoldSpread { get; set; }
     public bool GoldChangeAlert { get; set; } = true;
+    public string GoldAlertLevels { get; set; } = "";
+    public double GoldPercentAlert { get; set; } = 2;
+    public bool GoldCloseSummary { get; set; } = true;
+    public string GoldCloseSummaryDate { get; set; } = "";
+    public string GoldPercentSeen { get; set; } = "";
     // Interaction feel and behaviour (ideas from luweiyabo/dsh-whale-pet).
     public bool HoverFacing { get; set; } = true;
     public bool InteractionFx { get; set; } = true;
@@ -205,6 +222,10 @@ internal sealed class CompanionPreferences
                     s.GoldAlertHigh = double.IsFinite(s.GoldAlertHigh) && s.GoldAlertHigh > 0 ? s.GoldAlertHigh : 0;
                     s.GoldAlertLow = double.IsFinite(s.GoldAlertLow) && s.GoldAlertLow > 0 ? s.GoldAlertLow : 0;
                     s.GoldSpread = double.IsFinite(s.GoldSpread) && s.GoldSpread > 0 ? Math.Min(s.GoldSpread, 100000) : 0;
+                    s.GoldAlertLevels = CompanionGoldFeed.FormatLevels(CompanionGoldFeed.ParseLevels(s.GoldAlertLevels));
+                    s.GoldPercentAlert = GoldPercentStep(s.GoldPercentAlert);
+                    s.GoldCloseSummaryDate ??= "";
+                    s.GoldPercentSeen ??= "";
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

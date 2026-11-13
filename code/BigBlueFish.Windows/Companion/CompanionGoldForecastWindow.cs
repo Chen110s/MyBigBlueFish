@@ -53,7 +53,18 @@ public partial class MainWindow
         goldForecast = null;
     }
 
-    private bool GoldHistoryStale => DateTime.UtcNow - goldBarsFetched > GoldHistoryAge;
+    // Three hours old, or the day session has closed (15:30) since the last download: the day's final bar is there now,
+    // and with it yesterday's forecast can be checked.
+    private bool GoldHistoryStale
+    {
+        get
+        {
+            if (DateTime.UtcNow - goldBarsFetched > GoldHistoryAge) return true;
+            var local = DateTime.Now;
+            var closed = local.Date.Add(new TimeSpan(15, 35, 0));
+            return local.DayOfWeek is >= DayOfWeek.Monday and <= DayOfWeek.Friday && local >= closed && goldBarsFetched.ToLocalTime() < closed;
+        }
+    }
 
     // CareTick (through UpdateGold): keeps the history fresh while gold watching is on; retries every 15 minutes on failure.
     private void UpdateGoldHistory(DateTime now)
@@ -114,12 +125,22 @@ public partial class MainWindow
     {
         LoadGoldBars();
         string code = preferences.GoldVariety;
+        var now = DateTime.Now;
         bool live = goldQuote is { } quote && quote.Code == code;
-        goldForecast = CompanionGoldForecast.Compute(code, goldBars, live ? goldQuote!.Price : 0, live, DateTime.Now);
-        // Kept only when the last bar really is the current trading day (freshly downloaded) and the base price is current:
+        bool ownBars = CompanionGoldForecast.HistoryCode(code) == code;
+        // Today's bar follows the live quote, so today's move is in the volatility at once (Au100g borrows the Au99.99 bars and
+        // is left alone).
+        IReadOnlyList<GoldBar> bars = live && ownBars
+            ? CompanionGoldForecast.WithLive(goldBars, goldQuote!.Price, goldQuote.Open, goldQuote.High, goldQuote.Low, goldQuote.PreClose, now) : goldBars;
+        // While the market is shut the ranges are centred on the indicative price: the last trade moved by what international
+        // gold and the yuan have done since.
+        var indicative = live ? GoldIndicativeNow() : null;
+        var forecast = CompanionGoldForecast.Compute(code, bars, live ? indicative?.Price ?? goldQuote!.Price : 0, live, now);
+        goldForecast = forecast != null && indicative != null ? forecast with { BaseNote = "休市折算价" } : forecast;
+        // Kept only when the bars are fresh (so the last one really is the current trading day) and the base price is current:
         // the live quote, or the close of a finished day. Au100g is priced off Au99.99 bars, so it is not scored.
         if (goldForecast is { } f && DateTime.UtcNow - goldBarsFetched < TimeSpan.FromHours(6)
-            && (f.LiveBase || CompanionGoldForecast.Final(goldBars[^1], DateTime.Now)) && CompanionGoldForecast.HistoryCode(code) == code)
+            && (f.LiveBase || CompanionGoldForecast.Final(bars[^1], now)) && ownBars)
             RecordGoldForecast(f);
     }
 
@@ -161,11 +182,13 @@ public partial class MainWindow
         string P(double v) => CompanionGoldForecast.Price(v);
         var text = new StringBuilder($"招行 {q.Variety} 现在 {q.Price:0.00} {q.Unit}，今天 {q.UpDown:+0.00;-0.00;0.00}（{q.Percent:+0.00;-0.00;0.00}%），"
             + $"开盘 {q.Open:0.00}、最高 {q.High:0.00}、最低 {q.Low:0.00}");
-        text.Append(CompanionGoldFeed.MarketOpen(DateTime.Now) ? "。" : "（现在休市）。");
+        text.Append(GoldMarketNote());
         UpdateGoldForecast();
+        if (GoldIndicativeNow() is { } indicative)
+            text.Append("\n休市参考：").Append(GoldIndicativeText(indicative)).Append("。只是折算，开盘以招行报价为准。");
         if (goldForecast is { } f && q.Code == preferences.GoldVariety)
         {
-            var s = CompanionGoldForecast.Session(f, q.Price, DateTime.Now);
+            var s = CompanionGoldForecast.Session(f, f.LiveBase ? f.Base : q.Price, DateTime.Now);
             text.Append($"\n{s.Label}预计：按近期波动，约 68% 的情况在 {P(s.Low68)}～{P(s.High68)}，约 95% 在 {P(s.Low95)}～{P(s.High95)}。");
         }
         else text.Append("\n今天的预计还在准备（要先读历史日线），过一会儿再问我～");
@@ -189,6 +212,9 @@ public partial class MainWindow
             }
             if (goldBars.Count < CompanionGoldForecast.MinimumDays && DateTime.UtcNow >= nextGoldHistoryTry) await RefreshGoldHistory(false);
         }
+        // Shut market: a moment for the indicative price (international gold and the yuan since the last trade).
+        MaybeRefreshGoldIndicative();
+        if (goldIndicativeTask is { IsCompleted: false } indicative) await Task.WhenAny(indicative, Task.Delay(2500));
         if (companionClosed) return;
         Say(GoldTodayText(), goldQuote is { UpDown: >= 0 } ? "余额-金袋叮当" : goldQuote != null ? "余额-数金皱眉" : null);
     }
@@ -201,7 +227,9 @@ public partial class MainWindow
         string P(double v) => CompanionGoldForecast.Price(v);
         var text = new StringBuilder();
         if (advice) text.Append("买不买鱼鱼可不敢替你拿主意（鱼鱼不是理财顾问），不过可以给你看看统计上的区间：\n");
-        string basis = f.LiveBase ? $"现在 {P(f.Base)} {unit}" : $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘 {P(f.Base)} {unit}";
+        string basis = !f.LiveBase ? $"{f.BaseDate.Month} 月 {f.BaseDate.Day} 日收盘 {P(f.Base)} {unit}"
+            : f.BaseNote.Length > 0 ? $"{f.BaseNote} {P(f.Base)} {unit}（最后成交 {P(goldQuote?.Price ?? f.Base)}，按国际价格和汇率折算）"
+            : $"现在 {P(f.Base)} {unit}";
         if (days == 0)
         {
             var s = CompanionGoldForecast.Session(f, f.Base, DateTime.Now);
@@ -271,8 +299,11 @@ public partial class MainWindow
             return;
         }
         int? days = GoldHorizonAsked(message);
+        // "明天" asked after today's close, at night or at the weekend: the next close is the one meant (today's session row).
+        if (days == 1 && CompanionGoldForecast.NextClose(DateTime.Now).Label != "今天收盘") days = 0;
         bool advice = GoldAdviceAsk.IsMatch(message);
         if (goldQuote == null && !goldFetching) _ = FetchGold(false);
+        MaybeRefreshGoldIndicative();
         UpdateGoldForecast();
         if (goldForecast != null)
         {

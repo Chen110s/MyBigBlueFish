@@ -55,7 +55,8 @@ internal static class CompanionTriggerRules
         ("game.end", "游戏结束", TriggerCondition.Text, "游戏名包含（留空 = 任意）"),
         ("delta", "三角洲行动", TriggerCondition.Text, "进图 / 撤离 / 阵亡 / 被击倒（留空 = 任意）"),
         ("gold.change", "金价变动", TriggerCondition.Gold, "可写「涨」或「跌」，再加单次变动至少多少元，如「涨 2」「跌」「1.5」（留空 = 任意变动）"),
-        ("gold.alert", "金价到提醒价", TriggerCondition.Text, "高于 / 低于（留空 = 任意）"),
+        ("gold.alert", "金价到提醒价 / 涨跌幅", TriggerCondition.Text, "高于 / 低于（计划价）、涨到 / 跌到（其他到价提醒）、涨幅 / 跌幅（当日涨跌幅），多个用 | 隔开（留空 = 任意）"),
+        ("gold.close", "金价收盘小结", TriggerCondition.Text, "涨 / 跌（留空 = 任意）"),
     ];
 
     internal static readonly (int Value, string Label)[] Priorities = [(20, "低"), (40, "较低"), (50, "中"), (70, "较高"), (90, "高")];
