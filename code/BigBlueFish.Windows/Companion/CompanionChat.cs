@@ -186,6 +186,8 @@ public partial class MainWindow
                 if (!FocusActive) { StartFocus(); LogChat(message, $"好！鱼鱼陪{bond.Address}专注 {preferences.FocusMinutes} 分钟，不吵你～加油！", "鱼鱼"); }
                 return;
             }
+            // 帮我做事: "打开记事本，然后输入：……" is carried out (or shown first); everything else is ordinary chat
+            if (await TryTaskChatAsync(message, status)) return;
             if (TryGoldChat(message)) return;
             if (TryDeltaForceChat(message)) return;
             // 联网聊天: DeepSeek while it can be reached; otherwise (or if nothing came back) the local model below.

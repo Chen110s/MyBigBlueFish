@@ -50,6 +50,10 @@ public partial class MainWindow
             Later(() => { if (!TryOpenChat()) Say(preferences.ChatEnabled ? "鱼鱼现在不方便聊天呢～" : "聊天功能在设置里关掉了哦～"); });
         };
         companionContextMenu.Items.Add(chatItem);
+        var taskItem = new MenuItem { Header = "帮我做事…" };
+        taskItem.Icon = Icon("\uE945");
+        taskItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowTaskHelp); };
+        companionContextMenu.Items.Add(taskItem);
         var feedItem = new MenuItem { Header = "喂食…" };
         feedItem.Icon = Icon("\uE719");
         feedItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowFeedPanel); };

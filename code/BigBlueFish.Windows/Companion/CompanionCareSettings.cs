@@ -78,6 +78,9 @@ public partial class MainWindow
         page.Children.Add(forget);
         AddChatLogSettings(page, Note); // 聊天记录 and DeepSeek 网页版
 
+        // ---- 帮我做事: commands in the chat box
+        AddTaskSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));
+
         // ---- care
         Section("关怀提醒");
         ToggleWithMinutes("久坐提醒：连续使用电脑", preferences.SitReminder, v => preferences.SitReminder = v,

@@ -57,6 +57,7 @@ internal static class CompanionTriggerRules
         ("gold.change", "金价变动", TriggerCondition.Gold, "可写「涨」或「跌」，再加单次变动至少多少元，如「涨 2」「跌」「1.5」（留空 = 任意变动）"),
         ("gold.alert", "金价到提醒价 / 涨跌幅", TriggerCondition.Text, "高于 / 低于（计划价）、涨到 / 跌到（其他到价提醒）、涨幅 / 跌幅（当日涨跌幅），多个用 | 隔开（留空 = 任意）"),
         ("gold.close", "金价收盘小结", TriggerCondition.Text, "涨 / 跌（留空 = 任意）"),
+        ("task.done", "帮我做事做完了", TriggerCondition.Text, "成功 / 失败（留空 = 任意）"),
     ];
 
     internal static readonly (int Value, string Label)[] Priorities = [(20, "低"), (40, "较低"), (50, "中"), (70, "较高"), (90, "高")];

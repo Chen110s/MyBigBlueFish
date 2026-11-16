@@ -119,6 +119,13 @@ internal sealed class CompanionPreferences
     public bool GoldCloseSummary { get; set; } = true;
     public string GoldCloseSummaryDate { get; set; } = "";
     public string GoldPercentSeen { get; set; } = "";
+    // 帮我做事: commands in the chat box that open programs, search, type, press keys …
+    public bool TaskEnabled { get; set; } = true;
+    public bool TaskInput { get; set; } = true;
+    public bool TaskUseModel { get; set; } = true;
+    public int TaskConfirm { get; set; }
+    public string TaskSearchEngine { get; set; } = "bing";
+    public string TaskAliases { get; set; } = "";
     // Interaction feel and behaviour (ideas from luweiyabo/dsh-whale-pet).
     public bool HoverFacing { get; set; } = true;
     public bool InteractionFx { get; set; } = true;
@@ -226,6 +233,10 @@ internal sealed class CompanionPreferences
                     s.GoldPercentAlert = GoldPercentStep(s.GoldPercentAlert);
                     s.GoldCloseSummaryDate ??= "";
                     s.GoldPercentSeen ??= "";
+                    s.TaskConfirm = Math.Clamp(s.TaskConfirm, 0, 2);
+                    s.TaskSearchEngine = System.Linq.Enumerable.Any(CompanionTasks.Engines, e => e.Id == s.TaskSearchEngine) ? s.TaskSearchEngine : "bing";
+                    s.TaskAliases = (s.TaskAliases ?? "").Replace("\r", "");
+                    if (s.TaskAliases.Length > 6000) s.TaskAliases = s.TaskAliases[..6000];
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

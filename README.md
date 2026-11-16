@@ -41,6 +41,7 @@
 - **互动手感**（参考 [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)）：鼠标在她左右时转向那一侧、靠近时轻轻倾斜；点头、身体、尾巴各有不同回应并带 Q 弹回弹；拖动时挤压拉伸，快速甩出会变成球滑出去、碰到屏幕边反弹；拖出屏幕就藏到边上，鼠标移到那条边时探出头来。
 - **点屏幕让她跑过去**：单击鱼鱼后再点屏幕任意位置，她跑过去挥手打招呼（5 秒内有效，右键取消）。
 - **活跃程度与聊天状态**：安静 / 均衡 / 活泼三档；你在聊天框打字时她侧耳倾听，本地模型思考时深度思考，出错时被吓一跳。
+- **帮我做事**：在聊天框里说一句话，鱼鱼替你打开软件、文件、网页，搜索，在软件里打字和按键，调音量，截图，锁屏，定时关机（「打开记事本，然后输入：今天的待办」「用百度搜一下明天的天气」「把音量调到 30」）。打字、按键、关窗口先列出步骤等你点「执行」；不运行命令行和脚本，不替你输密码。
 - **动作库与触发规则**：右键「动作库…」按分类浏览、搜索、预览全部动作，让她立刻表演，或调整动作出现在随机 / 点击回应 / 待机 / 不自动播放哪个池里；「触发规则」让她在切换程序、整点、聊天说到某些话、金价变动、提醒到点、游戏进图撤离等事情发生时演指定的动作、说指定的话。
 - **DeepSeek 网页版与聊天记录**：右键「DeepSeek 网页版…」在鱼鱼的窗口里打开官方网页版（chat.deepseek.com），自己登录、像平时一样免费聊，鱼鱼不代发消息、不自己读页面；点「保存这次对话」把当前对话存成 Markdown；「微信扫码登录」打开 DeepSeek 的登录页，用手机微信扫码登录（DeepSeek 只给中国大陆网络显示二维码，没有时鱼鱼会说明原因，并可改用直连不走系统代理）。和鱼鱼聊天框里的每一轮聊天也会另存一份（每天一个文件）。保存位置默认 `data\chats`，可在设置里换成已有的文件夹。
 - **形象包切换**：在 `skins` 文件夹里放入自己的动画素材（WebM / GIF / APNG / MOV / PNG，透明背景），设置里一键切换形象，缺的动作自动用待机动作补上；附带 4 套原版调色，鲸鱼娘开源资产库「成熟比例鲸鱼娘」设定图做成的形象（只在本机，设定图没有写明许可，不随仓库分发），以及取自同人游戏《鲸鱼娘养成计划》的 4 个成长期（10 / 15 / 20 / 25 岁）、Q版女仆和 8 套换装形象（CC BY-NC-SA 4.0，仅限非商业使用）；可设置每隔一段时间自动轮换。
@@ -56,10 +57,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.20
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.21
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.20` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.21` 即为增强版。
 
 增强版基于官方 v1.0.5。升级到官方新版本（应用内「检查更新」或重新运行官方安装器）会覆盖增强版的程序文件，官方版还会清掉增强功能的设置；所以增强版在打开更新窗口前会先提醒你。
 
@@ -264,6 +265,7 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Interaction feel** (ideas from [luweiyabo/dsh-whale-pet](https://github.com/luweiyabo/dsh-whale-pet)): she turns towards the side the cursor is on and leans towards it; clicks on her head, body or tail get different replies with a squash-and-stretch pop; she stretches while dragged, turns into a ball and bounces off the screen edges when flung, and hides at an edge when dragged off the screen, peeking out when the cursor comes near.
 - **Run to a point**: click her once, then click anywhere on the screen and she runs there and waves (within 5 seconds; right-click cancels).
 - **Activity levels and chat awareness**: quiet / balanced / lively; she listens while you type in the chat box, thinks while the local model works, and is startled when something goes wrong.
+- **Do things for me**: say one sentence in the chat box and she opens programs, files and web pages, searches, types and presses keys in a program, changes the volume, takes a screenshot, locks the computer or sets a shutdown timer ("打开记事本，然后输入：今天的待办" — open Notepad and type today's to-dos; "把音量调到 30" — volume to 30). Typing, key presses and closing a window are listed first and wait for 「执行」; she runs no command lines or scripts and never types passwords.
 - **Action library and trigger rules**: right-click "动作库…" to browse, search and preview every action by category, make her perform one, or choose its pool (random, click reply, idle, never on its own); "触发规则" (trigger rules) make her play chosen actions and say chosen lines when you switch programs, on the hour, when you say certain things in chat, when the gold price moves, when a reminder is due, when a Delta Force raid starts or ends, and more.
 - **DeepSeek web chat and chat logs**: right-click "DeepSeek 网页版…" to open the official chat.deepseek.com in one of her windows; you log in and chat for free as in a browser (she never sends messages or reads the page on her own), and "保存这次对话" saves the conversation on the page as Markdown. "微信扫码登录" opens DeepSeek's sign-in page so you can scan its WeChat QR code with your phone (DeepSeek shows the QR code only to networks in mainland China; when it is missing she explains why and can switch the window to a direct connection that skips the system proxy). Every round in her own chat box is also copied to a daily Markdown file. Both go to `data\chats` by default, or to a folder you choose in the settings.
 - **Appearance packs**: put your own transparent animations (WebM / GIF / APNG / MOV / PNG) into a folder under `skins` and switch her look in settings; actions the pack lacks fall back to its idle clip. Four recoloured packs are included, a local-only "mature proportions" whale girl made from the character sheet in the community asset library TreapGoGo/deepseek-whale-girl (the sheet carries no stated licence, so it is not distributed with this repository), plus looks from the fan game "鲸鱼娘养成计划" (Whale Girl raising plan): four growth stages (age 10 / 15 / 20 / 25), a chibi maid and eight outfits (CC BY-NC-SA 4.0, non-commercial use only); the look can rotate automatically every few minutes.
@@ -279,10 +281,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.20
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.21
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.20` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.21` when the companion edition is running.
 
 The companion edition is built on official v1.0.5. Updating to a newer official version (in-app update or running a newer official installer) replaces its files, and the official version also drops the companion settings, so the companion edition asks before it opens the update window.
 

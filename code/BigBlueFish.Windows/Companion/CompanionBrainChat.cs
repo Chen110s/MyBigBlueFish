@@ -52,15 +52,50 @@ internal sealed partial class CompanionBrain
         }
     }
 
-    private async Task<string> CompleteChat(IReadOnlyList<ChatMessage> messages, CancellationToken token, Action<string>? onPartial)
+    // An answer that is not shown and not tidied up as a chat line (帮我做事 asks for steps as JSON). "" when there was none.
+    internal async Task<string> GeneratePlain(IReadOnlyList<ChatMessage> messages, int maxTokens)
+    {
+        if (disposed || Busy || !CanRunOnCurrentPower) return "";
+        Busy = true;
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        var token = active.Token;
+        try
+        {
+            await EnsureRunner(token);
+            Status = "正在想该怎么做";
+            string text = await CompleteChat(messages, token, null, maxTokens, .2, plain: true);
+            Status = ReadyStatus("本地模型就绪");
+            return text;
+        }
+        catch (OperationCanceledException)
+        {
+            StopRunner();
+            return "";
+        }
+        catch (Exception e)
+        {
+            StopRunner(); RecordFailure("拆步骤", e);
+            return "";
+        }
+        finally
+        {
+            Busy = false;
+            active?.Dispose();
+            active = null;
+            if (!CanRunOnCurrentPower) StopRunner();
+        }
+    }
+
+    private async Task<string> CompleteChat(IReadOnlyList<ChatMessage> messages, CancellationToken token, Action<string>? onPartial,
+        int maxTokens = 220, double temperature = .7, bool plain = false)
     {
         var payload = new
         {
             model = "local",
             messages = messages.ToArray(),
-            temperature = .7,
+            temperature,
             top_p = .9,
-            max_tokens = 220,
+            max_tokens = maxTokens,
             stream = true,
             cache_prompt = true,
             chat_template_kwargs = new { enable_thinking = false }
@@ -91,6 +126,7 @@ internal sealed partial class CompanionBrain
                     piece = messageContent.GetString() ?? "";
                 if (piece.Length == 0) continue;
                 raw.Append(piece);
+                if (plain) continue;
                 var partial = CleanChat(raw.ToString());
                 if (partial.Length > 0 && partial != lastPartial)
                 {
@@ -100,7 +136,7 @@ internal sealed partial class CompanionBrain
             }
             catch (JsonException) { }
         }
-        return CleanChat(raw.ToString());
+        return plain ? Regex.Replace(raw.ToString(), @"<think>[\s\S]*?</think>", "", RegexOptions.IgnoreCase).Trim() : CleanChat(raw.ToString());
     }
 
     // Like Clean, but allows a slightly longer conversational reply and strips role prefixes.
