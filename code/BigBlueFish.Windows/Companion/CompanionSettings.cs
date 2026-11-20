@@ -320,6 +320,7 @@ public partial class MainWindow
         timer.Tick += (_, _) => UpdateStatus();
         UpdateStatus();
         timer.Start();
+        AddLocalModelSettings(p, timer);
         void Button(string text, Action action)
         {
             var b = new Button

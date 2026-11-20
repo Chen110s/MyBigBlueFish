@@ -618,7 +618,7 @@ public partial class MainWindow
             ShowProvider();
         };
 
-        page.Children.Add(new TextBlock { Text = "联网时的性格（发给联网模型的人设，可以改）", Margin = new Thickness(0, 6, 0, 4) });
+        page.Children.Add(new TextBlock { Text = "鲸鱼少女的性格（发给聊天模型的人设，可以改）", Margin = new Thickness(0, 6, 0, 4) });
         var persona = new TextBox { Text = NetChatPersona, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 120, MaxHeight = 220,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto, FontSize = 12, Margin = new Thickness(0, 0, 0, 4) };
         System.Windows.Automation.AutomationProperties.SetName(persona, "联网聊天的性格设定");
@@ -638,6 +638,10 @@ public partial class MainWindow
         reset.HorizontalAlignment = HorizontalAlignment.Left;
         reset.Margin = new Thickness(0, 0, 0, 6);
         page.Children.Add(reset);
+        var local = new CheckBox { Content = "本地模型也用这个性格和动作库（关掉则用原版鱼鱼的口吻；本地模型的内容不出这台电脑）", IsChecked = preferences.LocalPersona,
+            Margin = new Thickness(0, 2, 0, 6) };
+        local.Click += (_, _) => { preferences.LocalPersona = local.IsChecked == true; SaveCompanion(); };
+        page.Children.Add(local);
         note("OpenRouter 免费模型：到 openrouter.ai 注册免费账号、创建一个 Key（不用充值），填进来点「测试连接」。默认按顺序试 DeepSeek V4 Flash 免费版、Gemma 4 31B 免费版、Nemotron 3 Ultra 免费版："
             + "哪个现在没有服务商提供就自动跳过（DeepSeek 免费版哪天恢复就自动用上）。免费次数每天约 50 次、每分钟 20 次（UTC 零点重置），用完当天自动换回本地模型。"
             + "免费模型的服务商可能会记录对话、用来改进模型；OpenRouter 隐私设置不允许免费模型时，测试和聊天会提示。"

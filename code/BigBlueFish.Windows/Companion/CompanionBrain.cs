@@ -182,7 +182,8 @@ internal sealed partial class CompanionBrain : IDisposable
     private async Task EnsureRunner(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (runnerReady && runner is { HasExited: false })
+        // A runner that still has the previous model loaded (the owner switched models) is replaced.
+        if (runnerReady && runner is { HasExited: false } && runnerModel == BigBlueFish.Deployment.ModelStore.Resolve(Environment.CurrentDirectory))
         {
             try
             {
@@ -230,6 +231,7 @@ internal sealed partial class CompanionBrain : IDisposable
         var model = BigBlueFish.Deployment.ModelStore.Resolve(Environment.CurrentDirectory);
         if (!File.Exists(path)) throw new IOException("未找到本地推理程序：" + path);
         if (model == null) throw new IOException("尚未安装可用模型，可以在设置中安装模型。");
+        runnerModel = model;
         var probe = new TcpListener(IPAddress.Loopback, 0);
         probe.Start();
         port = ((IPEndPoint)probe.LocalEndpoint).Port;
@@ -325,7 +327,7 @@ internal sealed partial class CompanionBrain : IDisposable
         process.BeginErrorReadLine();
         Status = ReadyStatus("正在加载本地模型");
         using var loading = CancellationTokenSource.CreateLinkedTokenSource(token);
-        loading.CancelAfter(runnerLoadTimeout);
+        loading.CancelAfter(runnerLoadTimeout + ModelAllowance);
         var loadingToken = loading.Token;
         try
         {
@@ -415,7 +417,7 @@ internal sealed partial class CompanionBrain : IDisposable
         if (disposed || Busy || !CanRunOnCurrentPower)
             return "";
         Busy = true;
-        active = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(100) + ModelAllowance);
         var token = active.Token;
         try
         {
@@ -558,7 +560,7 @@ internal sealed partial class CompanionBrain : IDisposable
         if (disposed || Busy || !CanRunOnCurrentPower)
             return "";
         Busy = true;
-        active = new CancellationTokenSource(TimeSpan.FromSeconds(100));
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(100) + ModelAllowance);
         var token = active.Token;
 #if COMPANION_OCR
         var generationWatch = Stopwatch.StartNew();
@@ -729,6 +731,7 @@ internal sealed partial class CompanionBrain : IDisposable
     private void StopRunner()
     {
         runnerReady = false;
+        runnerModel = null;
         usingCpuFallback = false;
         inferenceDevices = null;
         var previous = runner;
@@ -772,7 +775,7 @@ internal sealed partial class CompanionBrain : IDisposable
         if (disposed || Busy || RunnerPid != null || !CanRunOnCurrentPower)
             return;
         Busy = true;
-        active = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(90) + ModelAllowance);
         try
         {
             await EnsureRunner(active.Token);

@@ -219,11 +219,16 @@ public partial class MainWindow
                 ChatReply(message, "唔……鱼鱼的小脑袋还在忙，等一下下再说好不好～");
                 return;
             }
-            var messages = BuildChatMessages(message);
+            // 本地智能: with the persona on, the local model gets the same whale-girl persona, rules and action library as the
+            // network models; otherwise the original fish's voice.
+            bool persona = preferences.LocalPersona;
+            var messages = persona ? BuildNetChatMessages(message) : BuildChatMessages(message);
+            string? action = null;
+            Func<string, string>? clean = persona ? raw => { string shown = NetChatVisible(raw, out var tag); action = tag; return shown; } : null;
             // Any waiting speech/weather request loses its turn; clear its flags so it cannot get stuck.
             speechRequestPending = weatherRequestPending = false;
             long version = ++speechRequestVersion;
-            string reply = await brain.GenerateChat(messages, partial => ShowCompanionPartial(partial, version));
+            string reply = await brain.GenerateChat(messages, partial => ShowCompanionPartial(partial, version), clean);
             if (version == speechRequestVersion) EndModelSpeech();
             if (companionClosed) return;
             if (reply.Length == 0)
@@ -233,7 +238,12 @@ public partial class MainWindow
                 return;
             }
             if (version == speechRequestVersion) FinishCompanionPartial(reply);
-            LogChat(message, reply, "本地模型");
+            if (action != null && NetChatActions.TryGetValue(action, out var clip) && !dragging && TryFindRule(clip) is { } rule && ActionAllowed(50, true))
+            {
+                CancelMovement();
+                PlayAnimation(rule, "Interact");
+            }
+            LogChat(message, reply, "本地模型（" + LocalModelLabel() + "）");
             chatSession.Add(new CompanionBrain.ChatMessage("user", message));
             chatSession.Add(new CompanionBrain.ChatMessage("assistant", reply));
             if (chatSession.Count > 12) chatSession.RemoveRange(0, chatSession.Count - 12);

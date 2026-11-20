@@ -15,19 +15,41 @@ namespace BigBlueFish.Windows;
 // Multi-turn chat with the same local llama.cpp runner used for the short speech lines.
 internal sealed partial class CompanionBrain
 {
-    // Sends a full message list (system + recent turns + the owner's message) and streams the reply.
-    internal async Task<string> GenerateChat(IReadOnlyList<ChatMessage> messages, Action<string>? onPartial = null)
+    private string? runnerModel; // the model file the running llama-server has loaded
+
+    internal string? ModelPath => BigBlueFish.Deployment.ModelStore.Resolve(Environment.CurrentDirectory);
+
+    // Bigger local models load and answer more slowly: every GB above 3 adds 20 s to the time limits (the default 4B model
+    // gets none, a 9B Q4 model about a minute).
+    internal TimeSpan ModelAllowance
+    {
+        get
+        {
+            try { return ModelPath is { } path ? AllowanceFor(new FileInfo(path).Length) : TimeSpan.Zero; }
+            catch { return TimeSpan.Zero; }
+        }
+    }
+
+    internal static TimeSpan AllowanceFor(long modelBytes) => TimeSpan.FromSeconds(Math.Max(0, modelBytes / 1073741824.0 - 3) * 20);
+
+    // llama-server --list-devices: "Vulkan0: NVIDIA GeForce RTX 4060 (8188 MiB, 7524 MiB free)" lines, "" when it fails.
+    internal Task<string> ListDevices(CancellationToken token) => gpuDevices(token);
+
+    // Sends a full message list (system + recent turns + the owner's message) and streams the reply. clean turns the raw
+    // text into what the bubble shows (by default CleanChat); it sees the whole text so far each time.
+    internal async Task<string> GenerateChat(IReadOnlyList<ChatMessage> messages, Action<string>? onPartial = null, Func<string, string>? clean = null)
     {
         if (disposed || Busy || !CanRunOnCurrentPower)
             return "";
         Busy = true;
-        active = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        var allowance = ModelAllowance;
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(120) + allowance + allowance);
         var token = active.Token;
         try
         {
             await EnsureRunner(token);
             Status = "正在和主人聊天";
-            var text = await CompleteChat(messages, token, onPartial);
+            var text = await CompleteChat(messages, token, onPartial, clean: clean);
             Status = ReadyStatus("本地模型就绪");
             return CanRunOnCurrentPower ? text : "";
         }
@@ -57,7 +79,7 @@ internal sealed partial class CompanionBrain
     {
         if (disposed || Busy || !CanRunOnCurrentPower) return "";
         Busy = true;
-        active = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(60) + ModelAllowance);
         var token = active.Token;
         try
         {
@@ -87,8 +109,9 @@ internal sealed partial class CompanionBrain
     }
 
     private async Task<string> CompleteChat(IReadOnlyList<ChatMessage> messages, CancellationToken token, Action<string>? onPartial,
-        int maxTokens = 220, double temperature = .7, bool plain = false)
+        int maxTokens = 220, double temperature = .7, bool plain = false, Func<string, string>? clean = null)
     {
+        clean ??= CleanChat;
         var payload = new
         {
             model = "local",
@@ -127,7 +150,7 @@ internal sealed partial class CompanionBrain
                 if (piece.Length == 0) continue;
                 raw.Append(piece);
                 if (plain) continue;
-                var partial = CleanChat(raw.ToString());
+                var partial = clean(raw.ToString());
                 if (partial.Length > 0 && partial != lastPartial)
                 {
                     lastPartial = partial;
@@ -136,7 +159,7 @@ internal sealed partial class CompanionBrain
             }
             catch (JsonException) { }
         }
-        return plain ? Regex.Replace(raw.ToString(), @"<think>[\s\S]*?</think>", "", RegexOptions.IgnoreCase).Trim() : CleanChat(raw.ToString());
+        return plain ? Regex.Replace(raw.ToString(), @"<think>[\s\S]*?</think>", "", RegexOptions.IgnoreCase).Trim() : clean(raw.ToString());
     }
 
     // Like Clean, but allows a slightly longer conversational reply and strips role prefixes.

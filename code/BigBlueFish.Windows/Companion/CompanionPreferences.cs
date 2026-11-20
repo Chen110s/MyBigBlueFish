@@ -119,6 +119,8 @@ internal sealed class CompanionPreferences
     public bool GoldCloseSummary { get; set; } = true;
     public string GoldCloseSummaryDate { get; set; } = "";
     public string GoldPercentSeen { get; set; } = "";
+    // 本地智能: the local model chats with the whale-girl persona and action library too
+    public bool LocalPersona { get; set; } = true;
     // 帮我做事: commands in the chat box that open programs, search, type, press keys …
     public bool TaskEnabled { get; set; } = true;
     public bool TaskInput { get; set; } = true;

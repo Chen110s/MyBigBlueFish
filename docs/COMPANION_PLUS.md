@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.21`（构建时传入 `-p:InformationalVersion=1.0.5-companion.21`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.22`（构建时传入 `-p:InformationalVersion=1.0.5-companion.22`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -221,19 +221,32 @@
 - **不做的事**：只有你在聊天框里说的话才会让她动手，屏幕上、网页里的文字和模型自己的回答都不会。没有运行命令行的步骤，Win+R 不给按；不往命令行窗口（cmd、PowerShell、终端等）、密码框（按 UI 自动化的密码属性判断）、鱼鱼自己的窗口里打字，游戏开着时不碰键盘；不打开脚本、安装包、注册表文件（.bat .cmd .ps1 .vbs .js .msi .reg 等）；不删除文件，不点软件里的按钮，不读屏幕内容。打字途中窗口被切走会立刻停下；要打字的软件 20 秒内没出现在最前面就不打。
 - **隐私**：交给联网模型拆步骤时，这句话会像聊天一样发给所选的服务；其余都只在本机。触发规则新增事件「帮我做事做完了」（成功 / 失败）。
 
-## 十五、构建
+## 十五、本地智能：鲸鱼少女人设与换模型
+
+第二十二版新增。本地模型是装在这台电脑上的语言模型（默认 Qwen3.5-4B），没填联网 Key、没网或联网模型连不上时由它聊天；看窗口说的一句话、帮我做事拆步骤也用它。它的内容不出这台电脑。
+
+- **本地模型也用鲸鱼少女人设**：本地聊天和联网聊天用同一份「鲸鱼少女」人设、同一套规则和动作库（好感、心情、想起的记忆、游戏 / 专注状态、饱腹和精力都会告诉她），回复里带的动作标签（比如开心转圈、比心）会让她做对应的动作，标签本身不显示。人设在 设置 → 互动与关怀 → 聊天与记忆 里改；下面的勾「本地模型也用这个性格和动作库」关掉时，本地模型回到原版鱼鱼的口吻。聊天记录里注明用的是哪个本地模型。
+- **换模型**：设置 → 模型与供电 →「本地智能：换模型」。
+  - 下拉框列出 `data\models` 里已有的 GGUF 模型（不含 mmproj 视觉投影和没下完的文件），选哪个就用哪个；正在运行的模型空闲时马上换掉，忙时下一次回答前换。
+  - 一键下载：Qwen3.5-9B Q4_K_M（约 5.3 GB，更聪明）和 Qwen3.5-2B Q4_K_M（约 1.2 GB，更快）。来自魔搭社区 unsloth/Qwen3.5-9B-GGUF、unsloth/Qwen3.5-2B-GGUF（Apache-2.0），固定到检查过的版本，下载完按 SHA-256 校验，对不上就删掉；断网自动重试，暂停或关掉鱼鱼后再点会接着下（`.partial` 文件）；先检查磁盘空间。
+  - 看硬件给建议：读取内存大小和 llama-server 列出的显卡及显存（集成显卡按共享内存，不算独立显存）。独立显卡 7 GB 以上显存可以换 9B；没有时 9B 只能靠 CPU，16 GB 以上内存才建议，而且每句要等较久；内存更小时下载 9B 会先提醒可能带不动。
+  - 「从文件添加模型…」打开原有的手动导入窗口，可以放自己下载的 GGUF；「打开模型文件夹」可以删掉用不着的模型省空间。
+  - 大模型加载和回答更慢：模型文件每超过 3 GB 的 1 GB，加载、聊天、看窗口说话的超时各加 20 秒（9B 约多 45 秒）。
+- **不变的**：联网聊天优先的顺序不变；本地模型的运行参数（上下文、GPU 层数、关闭深度思考）不变；`model-selection.json` 的格式与官方安装器相同，换回默认模型只要在下拉框里选 Qwen3.5-4B。
+
+## 十六、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.21
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.22
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
 **官方更新会覆盖增强版**：用应用内「检查更新」或官方安装器升级到 v1.0.5 以后的官方版本时，程序文件会被替换、增强功能消失，官方版保存设置时还会去掉增强功能的设置项（好感度、聊天记忆、提醒、金价记录等数据文件不受影响）。所以增强版打开更新窗口前会先弹出提醒，托盘的新版本通知也会注明。已经被覆盖时，重新安装官方 v1.0.5 再编译增强版即可恢复。
 
-## 十六、改动的文件
+## 十七、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -242,12 +255,13 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionCrawl.cs` | 沿屏幕爬行：路径、旋转、巡游 / 单圈 / 停止、拐角贴边 |
 | `CompanionChat.cs` | 双击聊天窗口、对话上下文、称呼识别、聊天内的提醒与专注指令 |
 | `CompanionNetChat.cs` | 联网聊天：OpenRouter 免费模型 / DeepSeek API（流式、按顺序换模型、失败自动换本地模型）、Key 加密保存、人设与动作库、「主人还在吗……」、设置 |
-| `CompanionBrainChat.cs` | 本地模型多轮对话接口（`CompanionBrain` 的 partial） |
+| `CompanionBrainChat.cs` | 本地模型多轮对话接口（`CompanionBrain` 的 partial）；按模型大小放宽超时、换模型后重启运行时 |
 | `CompanionMemory.cs` | 会淡忘的长期记忆（遗忘曲线、模糊化回忆） |
 | `CompanionBond.cs` | 好感度、心情、每日统计、称呼 |
 | `CompanionCare.cs` | 关怀计时、离开回来、早安催睡、健康提醒、番茄钟、摸头、戳戳 |
 | `CompanionTasks.cs` | 帮我做事：把一句话解析成步骤（规则 + 模型回答的校验）、按键与网址 / 路径的规范化、软件名匹配、风险判断 |
 | `CompanionTaskRunner.cs` | 帮我做事：找软件、打开、键盘输入、窗口、音量、截图、关机，确认与执行，设置页 |
+| `CompanionLocalModels.cs` | 本地智能：已装模型列表与切换、Qwen3.5-9B / 2B 一键下载（续传、校验）、内存与显卡检测和建议、设置页 |
 | `CompanionFeeding.cs` | 喂食：食物表、饱腹度、口味、节日美食、拖食物喂她、饭点要饭、偷吃、气泡里的按钮 |
 | `CompanionPlay.cs` | 陪玩：玩具、表演与鼓掌 / 再来一个、猜拳、捉迷藏、精力、主动邀请 |
 | `CompanionReminders.cs` | 定时提醒（中文时间解析、持久化、提醒面板） |
