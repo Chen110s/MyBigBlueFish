@@ -193,13 +193,18 @@ public partial class MainWindow
 
     // ---------------------------------------------------------------- dragging & flinging
     private readonly List<(double Ms, double X, double Y)> dragSamples = new();
-    private sealed class CoastState { public double Vx, Vy; public Rect Area; public bool Ground; }
+    // Velocities in DIP per second; Elapsed in milliseconds.
+    private sealed class CoastState { public double Vx, Vy, Elapsed; public Rect Area; }
     private CoastState? coast;
 
-    // CompanionDown: grabbing her stops a slide.
+    // CompanionDown: grabbing her stops a flight (a fast one is a catch worth points).
     private void OnCompanionPressed()
     {
-        if (coast != null) EndCoast(false);
+        if (coast != null)
+        {
+            CatchFlyingPet(Math.Sqrt(coast.Vx * coast.Vx + coast.Vy * coast.Vy));
+            EndCoast(false);
+        }
         StopTargetRun();
         dragSamples.Clear();
         EndTargetSelection();
@@ -212,10 +217,12 @@ public partial class MainWindow
         if (edgeHide is { Seek: true }) SeekFound(true); // 捉迷藏: dragged out of her hiding place
         else if (edgeHide != null) edgeHide = null; // pulled back from the edge
         tiltTarget = 0;
+        ApplyGrabCursor(true);
     }
 
     private void OnDragMoved()
     {
+        if (!preferences.EdgeHide) KeepDragOnScreen();
         double ms = fxClock.Elapsed.TotalMilliseconds;
         dragSamples.Add((ms, Left, Top));
         if (dragSamples.Count > 10) dragSamples.RemoveAt(0);
@@ -235,9 +242,22 @@ public partial class MainWindow
         return dt <= 0 ? (0, 0) : ((last.X - first.X) / dt, (last.Y - first.Y) / dt);
     }
 
+    // Without the edge hide she cannot be dragged off the screens: her visible body stays inside the desktop.
+    private void KeepDragOnScreen()
+    {
+        var body = CompanionVisibleBounds;
+        double left = SystemParameters.VirtualScreenLeft, top = SystemParameters.VirtualScreenTop;
+        double right = left + SystemParameters.VirtualScreenWidth, bottom = top + SystemParameters.VirtualScreenHeight;
+        double x = Math.Clamp(Left, left - body.Left, Math.Max(left - body.Left, right - body.Right));
+        double y = Math.Clamp(Top, top - body.Top, Math.Max(top - body.Top, bottom - body.Bottom));
+        if (x != Left) Left = x;
+        if (y != Top) Top = y;
+    }
+
     // CompanionUp after a drag. True when a fling or the edge hide took over the drop.
     private bool DropWithInteraction()
     {
+        ApplyGrabCursor(false);
         var (vx, vy) = DragVelocity();
         dragSamples.Clear();
         fxStretch.Matrix = Matrix.Identity;
@@ -248,11 +268,13 @@ public partial class MainWindow
             FinishDragAnimation();
             return true;
         }
-        if (preferences.FlingBall && !ReducedMotion && !PuppetActive && speed >= 1.1)
+        if (preferences.FlingBall && !ReducedMotion && !PuppetActive && speed >= .6)
         {
             PublishMcpInteraction("drag_end", new { Left, Top, cancelled = false });
             crawlResumeAt = DateTime.UtcNow.AddSeconds(8);
-            StartCoast(Math.Clamp(vx, -6, 6), Math.Clamp(vy, -6, 6));
+            // release speed in DIP/s, softly limited (dsh-pet), times the throw power of the settings
+            double perSecond = speed * 1000, scale = CompanionDshPet.SoftClamp(perSecond) * preferences.PhysicsPower / perSecond;
+            StartCoast(vx * 1000 * scale, vy * 1000 * scale);
             return true;
         }
         if (FxEnabled) Squash(.07, .32, false); // a small settle where she lands
@@ -268,31 +290,24 @@ public partial class MainWindow
         StartFxRendering();
     }
 
+    // One frame of the flight (dt in ms): dsh-pet's physics — gravity, walls, ceiling, the floor of the work area with
+    // friction — with the settings of 甩出手感. Gravity 0 is the old weightless slide.
     private void CoastFrame(double dt)
     {
         var c = coast!;
         if (dragging || !IsVisible || companionClosed) { EndCoast(false); return; }
-        double decay = Math.Exp(-dt / 700);
-        c.Vx *= decay; c.Vy *= decay;
-        if (c.Ground) c.Vx *= Math.Exp(-dt / 1800); // rolling along the floor costs a little more
-        double left = Left + c.Vx * dt, top = Top + c.Vy * dt;
         var body = CompanionVisibleBounds;
         double minLeft = c.Area.Left - body.Left, maxLeft = c.Area.Right - body.Right;
         double minTop = c.Area.Top - body.Top, maxTop = c.Area.Bottom - body.Bottom;
-        void Bounce(ref double normal, ref double tangent, bool sideways)
-        {
-            if (Math.Abs(normal) > .35) Squash(Math.Min(.2, Math.Abs(normal) * .06), .3, sideways);
-            normal = Math.Abs(normal) > .12 ? -normal * .78 : 0;
-            tangent *= .97;
-        }
-        if (left < minLeft) { left = minLeft; if (c.Vx < 0) Bounce(ref c.Vx, ref c.Vy, true); }
-        else if (left > maxLeft) { left = maxLeft; if (c.Vx > 0) Bounce(ref c.Vx, ref c.Vy, true); }
-        if (top < minTop) { top = minTop; if (c.Vy < 0) Bounce(ref c.Vy, ref c.Vx, false); }
-        else if (top > maxTop) { top = maxTop; if (c.Vy > 0) Bounce(ref c.Vy, ref c.Vx, false); }
-        c.Ground = top >= maxTop - .5;
-        Left = left; Top = top;
-        StretchAlong(c.Vx, c.Vy);
-        if (Math.Sqrt(c.Vx * c.Vx + c.Vy * c.Vy) < .015) EndCoast(true);
+        double beforeVx = c.Vx;
+        var (state, bounced, impact, floor, rest) = CompanionDshPet.Step(new CompanionDshPet.ThrowState(Left, Top, c.Vx, c.Vy), dt / 1000,
+            minLeft, minTop, Math.Max(minLeft, maxLeft), Math.Max(minTop, maxTop), CurrentPhysics);
+        if (bounced && FxEnabled && CompanionDshPet.ImpactSquash(impact) is var amount and > 0)
+            Squash(amount, .3, Math.Sign(state.Vx) != Math.Sign(beforeVx) && Math.Abs(beforeVx) > 1 && !floor);
+        c.Vx = state.Vx; c.Vy = state.Vy; c.Elapsed += dt;
+        Left = state.X; Top = state.Y;
+        StretchAlong(c.Vx / 1000, c.Vy / 1000);
+        if (rest || c.Elapsed > 30000) EndCoast(true);
     }
 
     // The ball clip goes on to its natural end, where she stands up again.

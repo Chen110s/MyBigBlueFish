@@ -69,6 +69,7 @@ public partial class MainWindow
         InitializeOpacity();
         InitializeGameWatch();
         InitializeGold();
+        InitializeDshPet();
         careTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         careTimer.Tick += CareTick;
         careTimer.Start();
@@ -152,6 +153,7 @@ public partial class MainWindow
         FeedingTick(now, local, idle); // meal times, sneaking a snack
         PlayTick(now, local, idle);    // asking you to play
         ChatSilenceTick(now);          // 「主人还在吗……」 after ten quiet minutes in a chat
+        WhisperTick(now);              // 碎碎念 from the local pool
     }
 
     // ---------------------------------------------------------------- presence

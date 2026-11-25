@@ -223,8 +223,8 @@ public partial class MainWindow
             // network models; otherwise the original fish's voice.
             bool persona = preferences.LocalPersona;
             var messages = persona ? BuildNetChatMessages(message) : BuildChatMessages(message);
-            string? action = null;
-            Func<string, string>? clean = persona ? raw => { string shown = NetChatVisible(raw, out var tag); action = tag; return shown; } : null;
+            string? action = null, meme = null;
+            Func<string, string>? clean = persona ? raw => { string shown = NetChatVisible(raw, out var tag); action = tag; meme = CompanionDshPet.MemeName(raw); return shown; } : null;
             // Any waiting speech/weather request loses its turn; clear its flags so it cannot get stuck.
             speechRequestPending = weatherRequestPending = false;
             long version = ++speechRequestVersion;
@@ -237,7 +237,7 @@ public partial class MainWindow
                 ChatReply(message, "唔……鱼鱼刚刚走神了，" + bond.Address + "可以再说一遍吗？", remember: false);
                 return;
             }
-            if (version == speechRequestVersion) FinishCompanionPartial(reply);
+            if (version == speechRequestVersion) { FinishCompanionPartial(reply); AttachChatMeme(meme); }
             if (action != null && NetChatActions.TryGetValue(action, out var clip) && !dragging && TryFindRule(clip) is { } rule && ActionAllowed(50, true))
             {
                 CancelMovement();

@@ -390,7 +390,7 @@ public partial class MainWindow
     // AnimationBoundary hook: patrol always crawls, other modes sometimes replace an event.
     private bool TryStartCrawlAtBoundary(bool eventDue)
     {
-        if (crawl != null || !CanCrawl || CrawlBlocked || DateTime.UtcNow < crawlResumeAt) return false;
+        if (crawl != null || !CanCrawl || CrawlBlocked || preferences.StayPut || DateTime.UtcNow < crawlResumeAt) return false;
         if (CrawlPatrolActive) return StartCrawl();
         return eventDue && companionRandom.NextDouble() < CrawlEventChances[CrawlMode] && StartCrawl();
     }

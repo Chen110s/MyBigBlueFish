@@ -78,6 +78,9 @@ public partial class MainWindow
         page.Children.Add(forget);
         AddChatLogSettings(page, Note); // 聊天记录 and DeepSeek 网页版
 
+        // ---- 碎碎念, memes, work status (from dsh-pet)
+        AddDshPetCareSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));
+
         // ---- 帮我做事: commands in the chat box
         AddTaskSettings(page, Section, Note, (label, value, change) => Toggle(label, value, change));
 

@@ -178,9 +178,9 @@ public partial class MainWindow
     private string BondContext()
     {
         var local = DateTime.Now;
-        string week = "日一二三四五六"[(int)local.DayOfWeek].ToString();
         string name = string.IsNullOrWhiteSpace(bond.Nickname) ? "" : $"\n主人希望鱼鱼称呼他/她为「{bond.Nickname}」，平时可以这样称呼，也可以叫主人。";
-        return $"【现在】{local:yyyy年M月d日} 星期{week} {local:HH:mm}\n" +
+        // date, weekday, time, part of the day, weekday or weekend, festivals near (after dsh-pet's time context)
+        return CompanionTimeContext.Describe(local) + "\n" +
                $"【鱼鱼和主人的关系】亲密度：{bond.Level}（{bond.Affection:0}/100）——{bond.LevelGuidance}。{name}\n" +
                $"【鱼鱼此刻的心情】{CurrentMood}";
     }

@@ -97,6 +97,7 @@ public partial class MainWindow
     private string? netChatRetryWhy;
     private string? netChatBlocked;                       // key / account problem: off until the settings change
     private string? lastNetChatModel;
+    private string? netChatMeme; // the meme the last network reply picked
     private readonly Dictionary<string, DateTime> netModelSkipUntil = new(); // OpenRouter models that just failed
     private readonly Dictionary<string, string?> netKeys = new();
 
@@ -212,6 +213,7 @@ public partial class MainWindow
         if (GameActive) system.Append($"\n【现在】主人正在玩《{gameName}》，回答要短，别打扰主人打游戏。");
         if (FocusActive) system.Append($"\n【现在】主人正在专注（还剩 {FocusMinutesLeft} 分钟），回答简短，鼓励主人继续专注。");
         system.Append($"\n【你此刻】饱腹 {Fullness():0}/100（{FullnessWord(Fullness())}），精力 {Energy():0}/100（{EnergyWord(Energy())}）。");
+        system.Append(ChatMemeGuidance());
         var list = new List<CompanionBrain.ChatMessage> { new("system", system.ToString()) };
         list.AddRange(chatSession.TakeLast(12));
         list.Add(new CompanionBrain.ChatMessage("user", message));
@@ -224,7 +226,7 @@ public partial class MainWindow
         action = null;
         var match = ActionTag.Match(raw);
         if (match.Success) action = match.Groups[1].Value;
-        string text = ActionTag.Replace(raw, "");
+        string text = CompanionDshPet.StripMemeTags(ActionTag.Replace(raw, ""));
         var start = text.TrimStart();
         if (start.StartsWith('【') || start.StartsWith('[')) { if (!start.Contains('】') && !start.Contains(']') && start.Length < 14) return ""; }
         text = Regex.Replace(text, @"^\s*(鲸鱼少女|鱼鱼|蓝色大肥鱼)\s*[:：]\s*", "");
@@ -252,7 +254,7 @@ public partial class MainWindow
             var (attempt, reply, action) = await NetChatAttemptAsync(provider, key, model, messages, version);
             if (attempt == Attempt.Answered)
             {
-                if (version == speechRequestVersion) { EndModelSpeech(); FinishCompanionPartial(reply); }
+                if (version == speechRequestVersion) { EndModelSpeech(); FinishCompanionPartial(reply); AttachChatMeme(netChatMeme); }
                 if (action != null && NetChatActions.TryGetValue(action, out var clip) && !dragging && TryFindRule(clip) is { } rule && ActionAllowed(50, true))
                 {
                     CancelMovement();
@@ -344,6 +346,7 @@ public partial class MainWindow
             shown += "……"; // cut off mid-sentence: keep what arrived
         }
         string reply = NetChatVisible(raw, out action);
+        netChatMeme = CompanionDshPet.MemeName(raw);
         if (reply.Length == 0 && shown.Length > 0) reply = shown;
         if (reply.Length == 0)
         {

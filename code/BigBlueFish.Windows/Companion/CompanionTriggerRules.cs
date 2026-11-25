@@ -58,6 +58,8 @@ internal static class CompanionTriggerRules
         ("gold.alert", "金价到提醒价 / 涨跌幅", TriggerCondition.Text, "高于 / 低于（计划价）、涨到 / 跌到（其他到价提醒）、涨幅 / 跌幅（当日涨跌幅），多个用 | 隔开（留空 = 任意）"),
         ("gold.close", "金价收盘小结", TriggerCondition.Text, "涨 / 跌（留空 = 任意）"),
         ("task.done", "帮我做事做完了", TriggerCondition.Text, "成功 / 失败（留空 = 任意）"),
+        ("whisper", "鱼鱼碎碎念", TriggerCondition.Text, "她说的话包含（留空 = 任意一句）"),
+        ("catch", "接住飞行中的鱼鱼", TriggerCondition.AtLeast, "这一下至少多少分（留空 = 任意）"),
     ];
 
     internal static readonly (int Value, string Label)[] Priorities = [(20, "低"), (40, "较低"), (50, "中"), (70, "较高"), (90, "高")];

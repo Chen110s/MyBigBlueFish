@@ -42,6 +42,7 @@
 - **点屏幕让她跑过去**：单击鱼鱼后再点屏幕任意位置，她跑过去挥手打招呼（5 秒内有效，右键取消）。
 - **活跃程度与聊天状态**：安静 / 均衡 / 活泼三档；你在聊天框打字时她侧耳倾听，本地模型思考时深度思考，出错时被吓一跳。
 - **帮我做事**：在聊天框里说一句话，鱼鱼替你打开软件、文件、网页，搜索，在软件里打字和按键，调音量，截图，锁屏，定时关机（「打开记事本，然后输入：今天的待办」「用百度搜一下明天的天气」「把音量调到 30」）。打字、按键、关窗口先列出步骤等你点「执行」；不运行命令行和脚本，不替你输密码。
+- **碎碎念与表情包**（参考 [@tuweizhi/dsh-pet](https://github.com/TuWeiZhi/dsh-pet)）：每 10 分钟左右从本地语句池随机说一句（不调模型），约一半配一张表情包；聊天模型也能按语境挑一张表情包放进气泡；点一下气泡就收起，可换软糖体字体。甩出去有重力弧线、撞边反弹、落地摩擦（手感可调），飞行中点中她能得分；帮我做事和模型思考时演对应的工作状态动画。表情包等素材只在本机使用，不在本仓库里。
 - **本地智能**：没网或没填 Key 时，本地模型也用「鲸鱼少女」人设和动作库聊天（可关）；设置 → 模型与供电 可以在已装的模型之间切换，或一键下载更聪明的 Qwen3.5-9B（约 5.3 GB，建议 8 GB 显存的独立显卡）/ 更快的 Qwen3.5-2B（约 1.2 GB），会按这台电脑的内存和显卡给建议，断了能续传、下载后校验。
 - **动作库与触发规则**：右键「动作库…」按分类浏览、搜索、预览全部动作，让她立刻表演，或调整动作出现在随机 / 点击回应 / 待机 / 不自动播放哪个池里；「触发规则」让她在切换程序、整点、聊天说到某些话、金价变动、提醒到点、游戏进图撤离等事情发生时演指定的动作、说指定的话。
 - **DeepSeek 网页版与聊天记录**：右键「DeepSeek 网页版…」在鱼鱼的窗口里打开官方网页版（chat.deepseek.com），自己登录、像平时一样免费聊，鱼鱼不代发消息、不自己读页面；点「保存这次对话」把当前对话存成 Markdown；「微信扫码登录」打开 DeepSeek 的登录页，用手机微信扫码登录（DeepSeek 只给中国大陆网络显示二维码，没有时鱼鱼会说明原因，并可改用直连不走系统代理）。和鱼鱼聊天框里的每一轮聊天也会另存一份（每天一个文件）。保存位置默认 `data\chats`，可在设置里换成已有的文件夹。
@@ -58,10 +59,10 @@
 2. 在 Windows x64 上安装 .NET 10 SDK，于本仓库根目录编译（无MCP版示例，标准版去掉 `-p:CompanionEdition=Safe`）：
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.22
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.23
    ```
 
-3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.22` 即为增强版。
+3. 退出鱼鱼，备份安装目录中的 `BigBlueFish.dll` 和 `BigBlueFish.pdb`，再用 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 里的同名文件替换，重新启动即可。设置页左侧显示 `1.0.5-companion.23` 即为增强版。
 
 增强版基于官方 v1.0.5。升级到官方新版本（应用内「检查更新」或重新运行官方安装器）会覆盖增强版的程序文件，官方版还会清掉增强功能的设置；所以增强版在打开更新窗口前会先提醒你。
 
@@ -267,6 +268,7 @@ These features are Windows-only and work in both the Standard and the no-MCP (Sa
 - **Run to a point**: click her once, then click anywhere on the screen and she runs there and waves (within 5 seconds; right-click cancels).
 - **Activity levels and chat awareness**: quiet / balanced / lively; she listens while you type in the chat box, thinks while the local model works, and is startled when something goes wrong.
 - **Do things for me**: say one sentence in the chat box and she opens programs, files and web pages, searches, types and presses keys in a program, changes the volume, takes a screenshot, locks the computer or sets a shutdown timer ("打开记事本，然后输入：今天的待办" — open Notepad and type today's to-dos; "把音量调到 30" — volume to 30). Typing, key presses and closing a window are listed first and wait for 「执行」; she runs no command lines or scripts and never types passwords.
+- **Self-talk and memes** (after [@tuweizhi/dsh-pet](https://github.com/TuWeiZhi/dsh-pet)): every ten minutes or so she says a line from a local pool (no model), with a meme about every other time; the chat model can pick a meme for the bubble as well; a click closes the bubble, and a soft-candy font is available. Flung, she follows a gravity arc, bounces off the edges and slides to a stop on the floor (adjustable); catching her in flight scores points; Do-it-for-me tasks and model thinking play the matching work-status animations. The memes and other dsh-pet pictures are used locally only and are not part of this repository.
 - **Local intelligence**: without a network or key, the local model chats with the same "whale girl" persona and action library (can be turned off); Settings → model & power lets you switch between installed models or download the smarter Qwen3.5-9B (about 5.3 GB, best with an 8 GB graphics card) or the faster Qwen3.5-2B (about 1.2 GB) in one click, with advice based on this computer's memory and graphics card, resumable downloads and a checksum check.
 - **Action library and trigger rules**: right-click "动作库…" to browse, search and preview every action by category, make her perform one, or choose its pool (random, click reply, idle, never on its own); "触发规则" (trigger rules) make her play chosen actions and say chosen lines when you switch programs, on the hour, when you say certain things in chat, when the gold price moves, when a reminder is due, when a Delta Force raid starts or ends, and more.
 - **DeepSeek web chat and chat logs**: right-click "DeepSeek 网页版…" to open the official chat.deepseek.com in one of her windows; you log in and chat for free as in a browser (she never sends messages or reads the page on her own), and "保存这次对话" saves the conversation on the page as Markdown. "微信扫码登录" opens DeepSeek's sign-in page so you can scan its WeChat QR code with your phone (DeepSeek shows the QR code only to networks in mainland China; when it is missing she explains why and can switch the window to a direct connection that skips the system proxy). Every round in her own chat box is also copied to a daily Markdown file. Both go to `data\chats` by default, or to a folder you choose in the settings.
@@ -283,10 +285,10 @@ There are no separate installers for this repository. Recommended steps:
 2. Install the .NET 10 SDK on Windows x64 and build from the repository root (no-MCP example; drop `-p:CompanionEdition=Safe` for the Standard edition):
 
    ```powershell
-   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.22
+   dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.23
    ```
 
-3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.22` when the companion edition is running.
+3. Quit the pet, back up `BigBlueFish.dll` and `BigBlueFish.pdb` in the installation folder, replace them with the files of the same name from `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`, and start her again. The settings sidebar shows `1.0.5-companion.23` when the companion edition is running.
 
 The companion edition is built on official v1.0.5. Updating to a newer official version (in-app update or running a newer official installer) replaces its files, and the official version also drops the companion settings, so the companion edition asks before it opens the update window.
 

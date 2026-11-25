@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace BigBlueFish.Windows;
 
@@ -282,32 +283,52 @@ public partial class MainWindow
         return true;
     }
 
-    // ---------------------------------------------------------------- buttons in her bubble
+    // ---------------------------------------------------------------- pictures and buttons in her bubble
+    // Under the text: a picture (a meme or a small status icon) and a row of buttons. Both belong to the line they
+    // were shown with and go away when the bubble shows something else or closes.
+    private StackPanel? bubbleExtras;
+    private Image? bubbleImage;
     private WrapPanel? bubbleActions;
-    private string? bubbleActionsText;
+    private string? bubbleActionsText, bubbleImageText;
 
-    // Size of the button row for the bubble layout (zero when there is none).
+    // Size of the picture and button rows for the bubble layout (zero when there are none).
     internal Size CompanionBubbleActionsSize(double maxWidth)
     {
-        if (bubbleActions == null || bubbleActions.Visibility != Visibility.Visible) return new Size(0, 0);
-        bubbleActions.Measure(new Size(maxWidth, double.PositiveInfinity));
-        return bubbleActions.DesiredSize;
+        if (bubbleExtras == null || bubbleExtras.Visibility != Visibility.Visible) return new Size(0, 0);
+        bubbleExtras.Measure(new Size(maxWidth, double.PositiveInfinity));
+        return bubbleExtras.DesiredSize;
     }
 
     private void EnsureBubbleActions()
     {
-        if (bubbleActions != null || bubble.Child is not Grid grid) return;
+        if (bubbleExtras != null || bubble.Child is not Grid grid) return;
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        bubbleExtras = new StackPanel { Visibility = Visibility.Collapsed };
+        bubbleImage = new Image { Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Left, Stretch = Stretch.Uniform,
+            Visibility = Visibility.Collapsed };
+        RenderOptions.SetBitmapScalingMode(bubbleImage, BitmapScalingMode.HighQuality);
         bubbleActions = new WrapPanel { Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed };
-        Grid.SetRow(bubbleActions, 1);
-        grid.Children.Add(bubbleActions);
+        bubbleExtras.Children.Add(bubbleImage);
+        bubbleExtras.Children.Add(bubbleActions);
+        Grid.SetRow(bubbleExtras, 1);
+        grid.Children.Add(bubbleExtras);
         void Check(object? s, EventArgs e)
         {
-            if (bubbleActionsText != null && (speech.FullText != bubbleActionsText || bubble.Visibility != Visibility.Visible)) ClearBubbleActions();
+            bool hidden = bubble.Visibility != Visibility.Visible;
+            if (bubbleActionsText != null && (speech.FullText != bubbleActionsText || hidden)) ClearBubbleActions();
+            if (bubbleImageText != null && (speech.FullText != bubbleImageText || hidden)) ClearBubbleImage();
         }
         System.ComponentModel.DependencyPropertyDescriptor.FromProperty(TextBlock.TextProperty, typeof(TextBlock)).AddValueChanged(bubbleText, Check);
         System.ComponentModel.DependencyPropertyDescriptor.FromProperty(VisibilityProperty, typeof(Border)).AddValueChanged(bubble, Check);
+    }
+
+    private void UpdateBubbleExtras()
+    {
+        if (bubbleExtras == null) return;
+        bool any = bubbleImage?.Visibility == Visibility.Visible || bubbleActions?.Visibility == Visibility.Visible;
+        bubbleExtras.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+        CompanionEdgeLayout.Refresh(this);
     }
 
     private void ClearBubbleActions()
@@ -316,7 +337,50 @@ public partial class MainWindow
         if (bubbleActions == null) return;
         bubbleActions.Children.Clear();
         bubbleActions.Visibility = Visibility.Collapsed;
-        CompanionEdgeLayout.Refresh(this);
+        UpdateBubbleExtras();
+    }
+
+    private void ClearBubbleImage()
+    {
+        bubbleImageText = null;
+        if (bubbleImage == null) return;
+        bubbleImage.Source = null;
+        bubbleImage.Visibility = Visibility.Collapsed;
+        UpdateBubbleExtras();
+    }
+
+    private static readonly Dictionary<string, BitmapImage> bubbleBitmaps = new();
+
+    // A picture file, decoded once at a sensible size and kept (the memes are small; a missing file gives null).
+    private static BitmapImage? LoadBubbleBitmap(string path)
+    {
+        if (bubbleBitmaps.TryGetValue(path, out var cached)) return cached;
+        try
+        {
+            var bitmap = new BitmapImage();
+            bitmap.BeginInit();
+            bitmap.CacheOption = BitmapCacheOption.OnLoad;
+            bitmap.UriSource = new Uri(path);
+            bitmap.DecodePixelWidth = 288;
+            bitmap.EndInit();
+            bitmap.Freeze();
+            return bubbleBitmaps[path] = bitmap;
+        }
+        catch { return null; }
+    }
+
+    // Shows a picture under the line in her bubble (width in bubble DIP); tooltip: what it is.
+    private void ShowBubbleImage(string path, double width, string? tooltip)
+    {
+        if (bubble.Visibility != Visibility.Visible || speech.FullText.Length == 0) return;
+        EnsureBubbleActions();
+        if (bubbleImage == null || LoadBubbleBitmap(path) is not { } bitmap) return;
+        bubbleImage.Source = bitmap;
+        bubbleImage.Width = width;
+        bubbleImage.ToolTip = tooltip;
+        bubbleImage.Visibility = Visibility.Visible;
+        bubbleImageText = speech.FullText;
+        UpdateBubbleExtras();
     }
 
     // Says a line with buttons under it; a button runs its action and closes the bubble.
@@ -349,6 +413,6 @@ public partial class MainWindow
         }
         bubbleActionsText = text;
         bubbleActions.Visibility = Visibility.Visible;
-        CompanionEdgeLayout.Refresh(this);
+        UpdateBubbleExtras();
     }
 }

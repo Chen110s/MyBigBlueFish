@@ -486,7 +486,8 @@ public partial class MainWindow
         int done = 0;
         try
         {
-            if (steps.Count > 1 || steps.Any(CompanionTasks.UsesInput)) Say("鱼鱼这就去做～", "工作状态-忙碌点按");
+            if (steps.Count > 1 || steps.Any(CompanionTasks.UsesInput))
+                Say(preferences.WorkStatus ? Pick(CompanionDshPet.WorkStatusTexts[1]) : "鱼鱼这就去做～", preferences.WorkStatus ? null : "工作状态-忙碌点按");
             foreach (var step in steps)
             {
                 if (companionClosed) return;
@@ -497,6 +498,7 @@ public partial class MainWindow
                     break;
                 }
                 done++;
+                if (done < steps.Count) taskStepDoneUntil = DateTime.UtcNow.AddSeconds(3); // work status: one step done
             }
         }
         catch (Exception ex) { failure = "出了点问题：" + ex.Message; }
@@ -505,7 +507,9 @@ public partial class MainWindow
         string reply = failure == null
             ? (steps.Count == 1 ? "好啦：" + CompanionTasks.Describe(steps[0], preferences.TaskSearchEngine) : $"{steps.Count} 步都做好啦～") + (run.Note != null ? "（" + run.Note + "）" : "")
             : failure + (done > 0 ? $"（前 {done} 步已经做了）" : "");
+        if (failure == null && preferences.WorkStatus && steps.Count > 1) reply += " " + Pick(CompanionDshPet.WorkStatusTexts[4]);
         ChatReply(message, reply, failure == null ? "工作状态-雀跃庆祝" : "工作状态-垂头叹气冒汗", remember: false);
+        ShowStatusIcon(failure == null ? "done" : "error");
         PetEvent("task.done", failure == null ? "成功" : "失败", said: reply);
     }
 
@@ -565,9 +569,11 @@ public partial class MainWindow
             if (lastExternalForeground != IntPtr.Zero && CompanionTaskNative.IsWindow(lastExternalForeground)) CompanionNative.GetWindowText(lastExternalForeground, title, title.Capacity);
             text += title.Length > 0 ? $"\n（在你刚才用的窗口「{(title.Length > 30 ? title.ToString(0, 30) + "…" : title.ToString())}」里）" : "\n（在你刚才用的窗口里）";
         }
-        SayWithActions(text, "工作状态-思考冒泡",
+        // with the work status on, the waiting clip comes from WaitingIntent (and loops while the question is open)
+        SayWithActions(text, preferences.WorkStatus ? null : "工作状态-思考冒泡",
             ("执行", () => { var task = pendingTask; pendingTask = null; if (task != null) _ = RunTaskAsync(task.Message, task.Steps); }),
             ("取消", () => { pendingTask = null; Say("好哒，不做啦～"); }));
+        ShowStatusIcon("question");
         LogChat(message, text, "鱼鱼");
         return true;
     }

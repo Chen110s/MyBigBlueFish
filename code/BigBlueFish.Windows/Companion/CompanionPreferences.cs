@@ -128,6 +128,28 @@ internal sealed class CompanionPreferences
     public int TaskConfirm { get; set; }
     public string TaskSearchEngine { get; set; } = "bing";
     public string TaskAliases { get; set; } = "";
+    // From @tuweizhi/dsh-pet: local 碎碎念, memes, work status, throw physics, catching her, staying put, cursors, bubble font.
+    public bool WhisperEnabled { get; set; } = true;
+    public int WhisperSeconds { get; set; } = 600;
+    public string WhisperLines { get; set; } = ""; // one line per line; "" = the 40 built-in lines
+    public bool WhisperImages { get; set; } = true;
+    public bool ChatMemes { get; set; } = true;
+    public int ChatMemeLimit { get; set; } = 10;   // 0 = all
+    public System.Collections.Generic.List<string>? MemesOff { get; set; } // null = each meme's default
+    public bool WorkStatus { get; set; } = true;
+    public double PhysicsGravity { get; set; } = 1400;
+    public double PhysicsRestitution { get; set; } = .78;
+    public double PhysicsFriction { get; set; } = 2.5;
+    public bool PhysicsCeiling { get; set; } = true;
+    public double PhysicsPower { get; set; } = 1;
+    public bool CatchScore { get; set; } = true;
+    public string ScoreDate { get; set; } = "";
+    public int ScoreToday { get; set; }
+    public int ScoreBest { get; set; }
+    public bool StayPut { get; set; }
+    public bool GrabCursor { get; set; } = true;
+    public string BubbleFont { get; set; } = "";  // "" 乐米小奶泡体, "candy" 上首软糖体
+    public bool BubbleClickClose { get; set; } = true;
     // Interaction feel and behaviour (ideas from luweiyabo/dsh-whale-pet).
     public bool HoverFacing { get; set; } = true;
     public bool InteractionFx { get; set; } = true;
@@ -239,6 +261,18 @@ internal sealed class CompanionPreferences
                     s.TaskSearchEngine = System.Linq.Enumerable.Any(CompanionTasks.Engines, e => e.Id == s.TaskSearchEngine) ? s.TaskSearchEngine : "bing";
                     s.TaskAliases = (s.TaskAliases ?? "").Replace("\r", "");
                     if (s.TaskAliases.Length > 6000) s.TaskAliases = s.TaskAliases[..6000];
+                    s.WhisperSeconds = Math.Clamp(s.WhisperSeconds, 60, 7200);
+                    s.WhisperLines = (s.WhisperLines ?? "").Replace("\r", "");
+                    if (s.WhisperLines.Length > 20000) s.WhisperLines = s.WhisperLines[..20000];
+                    s.ChatMemeLimit = Math.Clamp(s.ChatMemeLimit, 0, 100);
+                    s.PhysicsGravity = double.IsFinite(s.PhysicsGravity) ? Math.Clamp(s.PhysicsGravity, 0, 4000) : 1400;
+                    s.PhysicsRestitution = double.IsFinite(s.PhysicsRestitution) ? Math.Clamp(s.PhysicsRestitution, 0, 1) : .78;
+                    s.PhysicsFriction = double.IsFinite(s.PhysicsFriction) ? Math.Clamp(s.PhysicsFriction, 0, 10) : 2.5;
+                    s.PhysicsPower = double.IsFinite(s.PhysicsPower) ? Math.Clamp(s.PhysicsPower, .3, 3) : 1;
+                    s.ScoreDate ??= "";
+                    s.ScoreToday = Math.Max(0, s.ScoreToday);
+                    s.ScoreBest = Math.Max(0, s.ScoreBest);
+                    s.BubbleFont = s.BubbleFont == "candy" ? "candy" : "";
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

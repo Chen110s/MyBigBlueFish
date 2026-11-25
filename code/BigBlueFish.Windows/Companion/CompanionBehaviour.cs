@@ -15,7 +15,7 @@ public partial class MainWindow
     internal static readonly string[] ActivityLabels = ["安静（只在原地演）", "均衡", "活泼（动得更勤、会跑来跑去）"];
     private double ActivityIntervalFactor => preferences.ActivityLevel switch { 0 => 1.5, 2 => .6, _ => 1 };
 
-    // A random action for the activity level: 安静 never picks a walking clip.
+    // A random action for the activity level: 安静 (and 原地不动) never picks a walking clip.
     private CompanionAnimationRule? ChooseActivityEvent()
     {
         var context = AnimationContext();
@@ -24,7 +24,7 @@ public partial class MainWindow
             for (int i = 0; i < 8; i++)
             {
                 var rule = animationPolicy.Choose("Event", context, companionRandom);
-                if (preferences.ActivityLevel != 0 || rule.MoveKind == null) return rule;
+                if (preferences.ActivityLevel != 0 && !preferences.StayPut || rule.MoveKind == null) return rule;
             }
         }
         catch (InvalidOperationException) { } // nothing in the pool can play right now
@@ -36,6 +36,12 @@ public partial class MainWindow
     private static readonly Intent ListenIntent = new("listen", 30, "侧耳倾听", "东张西望");
     private static readonly Intent ThinkIntent = new("think", 40, "深度思考碎碎念", null);
     private static readonly Intent ErrorIntent = new("error", 60, "被吓一跳", null);
+    // Work status (dsh-pet): thinking about a reply, 帮我做事 working / one step done / waiting for 执行.
+    private static readonly Intent WorkThinkIntent = new("work.think", 40, "工作状态-思考冒泡", "深度思考碎碎念");
+    private static readonly Intent WorkingIntent = new("work.busy", 45, "工作状态-忙碌点按", null);
+    private static readonly Intent StepDoneIntent = new("work.step", 47, "工作状态-清点归档", null);
+    private static readonly Intent WaitingIntent = new("work.wait", 35, "工作状态-原地踱步张望", "东张西望");
+    private DateTime taskStepDoneUntil = DateTime.MinValue;
 
     private Intent? currentIntent, pendingIntent;
     private bool intentPending;
@@ -52,9 +58,16 @@ public partial class MainWindow
 
     private Intent? WantedIntent(DateTime now)
     {
-        if (!preferences.ChatSensing) return null;
-        if (now < chatErrorUntil) return ErrorIntent;
-        if (loadingIndicator?.Visibility == Visibility.Visible) return ThinkIntent;
+        if (preferences.WorkStatus)
+        {
+            if (taskRunning) return now < taskStepDoneUntil ? StepDoneIntent : WorkingIntent;
+            if (pendingTask is { } waiting && now <= waiting.Expires && bubbleActionsText != null) return WaitingIntent;
+        }
+        bool sensing = preferences.ChatSensing;
+        if (sensing && now < chatErrorUntil) return ErrorIntent;
+        if (loadingIndicator?.Visibility == Visibility.Visible && (sensing || preferences.WorkStatus))
+            return preferences.WorkStatus ? WorkThinkIntent : ThinkIntent;
+        if (!sensing) return null;
         if (chatWindow != null && now < chatTypingUntil) return ListenIntent;
         if (deepSeekWindow?.IsActive == true && CompanionNative.IdleSeconds < 2) return ListenIntent; // you are busy in DeepSeek 网页版
         return null;
@@ -149,7 +162,7 @@ public partial class MainWindow
         Toggle("交互动效：光标靠近时轻轻倾斜，点她有 Q 弹回弹，拖动时挤压拉伸", preferences.InteractionFx, v => { preferences.InteractionFx = v; if (!v) tiltTarget = 0; });
         Toggle("点击分区：点头、身体、尾巴各有不同的回应", preferences.ClickZones, v => preferences.ClickZones = v);
         Toggle("快速甩出：她会变成球滑出去，碰到屏幕边反弹", preferences.FlingBall, v => preferences.FlingBall = v);
-        Toggle("拖出屏幕时藏到边上，鼠标移到那条边时探出头来（点她就回来）", preferences.EdgeHide, v => { preferences.EdgeHide = v; if (!v) LeaveEdgeHide(); });
+        Toggle("拖出屏幕时藏到边上，鼠标移到那条边时探出头来（点她就回来；关掉则拖不出屏幕）", preferences.EdgeHide, v => { preferences.EdgeHide = v; if (!v) LeaveEdgeHide(); });
         Toggle("单击鱼鱼后再点屏幕任意位置，她跑过去挥手（5 秒内有效，右键取消；会接住这一下点击，不会点到下面的窗口）", preferences.ClickToMove, v => { preferences.ClickToMove = v; if (!v) EndTargetSelection(); });
         Toggle("聊天状态：你打字时她侧耳倾听，本地模型思考时深度思考，出错时被吓一跳", preferences.ChatSensing, v => preferences.ChatSensing = v);
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 4) };
@@ -177,5 +190,6 @@ public partial class MainWindow
             Text = "这些玩法参考了 luweiyabo/dsh-whale-pet。安静：只在原地演、不走动；均衡：和以前一样；活泼：动作更勤，还会自己跑来跑去。"
                 + "Windows 关闭了「显示动画」时，倾斜、回弹和甩出滑行会自动停用。动作库里可以预览全部动作、调整它们在哪个动作池；"
                 + "触发规则让她在你指定的事情发生时演指定的动作、说指定的话。" });
+        AddDshPetLookSettings(page);
     }
 }

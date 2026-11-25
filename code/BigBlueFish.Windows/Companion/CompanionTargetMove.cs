@@ -242,7 +242,7 @@ public partial class MainWindow
     // 活泼: now and then she runs a little way along the screen on her own.
     private bool ActivityWander()
     {
-        if (preferences.ActivityLevel != 2 || companionRandom.NextDouble() > .3 || edgeHide != null || mimicActive || FocusActive) return false;
+        if (preferences.ActivityLevel != 2 || preferences.StayPut || companionRandom.NextDouble() > .3 || edgeHide != null || mimicActive || FocusActive) return false;
         double distance = (60 + companionRandom.NextDouble() * 180) * preferences.Scale;
         double direction = companionRandom.NextDouble() < .5 ? -1 : 1;
         var area = CompanionEdgeLayout.WorkArea(this);
