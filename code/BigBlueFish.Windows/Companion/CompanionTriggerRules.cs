@@ -42,7 +42,7 @@ internal static class CompanionTriggerRules
         ("click", "点鱼鱼", TriggerCondition.Text, "部位：头 / 身体 / 尾巴（留空 = 任意）"),
         ("pat", "摸鱼鱼的头", TriggerCondition.None, ""),
         ("feed", "喂食", TriggerCondition.Text, "食物名包含（偷吃被抓到时是「偷吃被抓住」；留空 = 任意）"),
-        ("play", "陪鱼鱼玩", TriggerCondition.Text, "玩具 / 节目 / 游戏名包含，如 魔方、女仆舞、猜拳赢了、捉迷藏被找到（留空 = 任意）"),
+        ("play", "陪鱼鱼玩", TriggerCondition.Text, "玩具 / 节目 / 游戏名包含，如 魔方、女仆舞、猜拳赢了、井字棋赢了 / 输了 / 和棋、捉迷藏被找到（留空 = 任意）"),
         ("chat.message", "聊天时你说的话", TriggerCondition.Text, "包含的文字（可用 | 分隔多个；留空 = 任意一句）"),
         ("chat.reply", "鱼鱼回答完", TriggerCondition.Text, "回答包含的文字（留空 = 任意）"),
         ("chat.error", "聊天出错 / 鱼鱼走神", TriggerCondition.None, ""),

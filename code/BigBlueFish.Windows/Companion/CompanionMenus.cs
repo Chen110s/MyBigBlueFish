@@ -66,6 +66,10 @@ public partial class MainWindow
         playItem.Icon = Icon("\uE7FC");
         playItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowPlayPanel); };
         companionContextMenu.Items.Add(playItem);
+        var tttItem = new MenuItem { Header = "井字棋" };
+        tttItem.Icon = Icon("\uE8A9");
+        tttItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowTicTacToe); };
+        companionContextMenu.Items.Add(tttItem);
         var focusItem = new MenuItem { Header = $"专注 {preferences.FocusMinutes} 分钟" };
         focusItem.Icon = Icon("\uE916");
         focusItem.Click += (_, _) => { companionContextMenu.IsOpen = false; ToggleFocus(); };
@@ -113,7 +117,8 @@ public partial class MainWindow
             remindItem.Header = reminders.Count > 0 ? $"提醒事项（{reminders.Count}）…" : "提醒事项…";
             feedItem.Header = $"喂食…（饱腹 {Fullness():0}）";
             playItem.Header = SeekActive ? "陪鱼鱼玩…（捉迷藏中）" : $"陪鱼鱼玩…（精力 {Energy():0}）";
-            foreach (var item in new[] { chatItem, feedItem, playItem, focusItem, remindItem }) item.IsEnabled = !PuppetActive;
+            tttItem.Header = tttGame != null ? "井字棋（下棋中）" : "井字棋";
+            foreach (var item in new[] { chatItem, feedItem, playItem, tttItem, focusItem, remindItem }) item.IsEnabled = !PuppetActive;
         };
     }
 

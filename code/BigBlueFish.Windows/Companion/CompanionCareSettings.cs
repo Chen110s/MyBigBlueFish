@@ -48,16 +48,27 @@ public partial class MainWindow
             Foreground = new SolidColorBrush(Color.FromRgb(96, 132, 214)) });
         Note($"今天：摸头 {bond.Pats} 次 · 喂食 {bond.Feeds} 次 · 陪玩 {bond.Plays} 次 · 聊天 {bond.Chats} 句 · 专注 {bond.Focus} 轮 · 一共陪伴了 {bond.CompanionMinutes / 60:0.#} 小时"
             + (string.IsNullOrWhiteSpace(bond.Nickname) ? "" : $" · 鱼鱼叫你「{bond.Nickname}」"));
-        Note($"饱腹 {Fullness():0}/100（{FullnessWord(Fullness())}）· 精力 {Energy():0}/100（{EnergyWord(Energy())}）· 今天猜拳 鱼鱼赢 {bond.RpsWins} 局、主人赢 {bond.RpsLosses} 局");
+        Note($"饱腹 {Fullness():0}/100（{FullnessWord(Fullness())}）· 精力 {Energy():0}/100（{EnergyWord(Energy())}）· 今天猜拳 鱼鱼赢 {bond.RpsWins} 局、主人赢 {bond.RpsLosses} 局"
+            + $" · 今天井字棋 鱼鱼赢 {bond.TttWins}、主人赢 {bond.TttLosses}、和棋 {bond.TttDraws}（一共 {bond.TttWinsAll} / {bond.TttLossesAll} / {bond.TttDrawsAll}）");
         Note("摸头：鼠标在鱼鱼头上来回轻轻划几下；连续戳她会生气哦。右键菜单可以喂食、陪她玩、聊天、专注和设置提醒；喂食面板里的食物也可以直接拖到鱼鱼身上。");
 
         // ---- feeding & play
         Section("吃饭与玩耍");
         Toggle("饭点要饭：早 / 中 / 晚饭时间肚子饿了，她会来问你要吃的", preferences.MealRequests, v => preferences.MealRequests = v);
         Toggle("偷吃：饿坏了又没人喂时，她会偷偷吃零食（点她就能抓个正着）", preferences.Sneaking, v => preferences.Sneaking = v);
-        Toggle("主动找你玩：你空闲时，她偶尔会拿着玩具来邀请你一起玩", preferences.PlayInvites, v => preferences.PlayInvites = v);
+        Toggle("主动找你玩：你空闲时，她偶尔会拿着玩具来邀请你一起玩，或者找你下井字棋", preferences.PlayInvites, v => preferences.PlayInvites = v);
+        var tttRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+        tttRow.Children.Add(new TextBlock { Text = "井字棋难度", VerticalAlignment = VerticalAlignment.Center });
+        var tttLevel = new ComboBox { MinWidth = 96, Margin = new Thickness(10, 2, 0, 2), VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Automation.AutomationProperties.SetName(tttLevel, "井字棋难度");
+        foreach (var name in CompanionTicTacToe.Levels) tttLevel.Items.Add(name);
+        tttLevel.SelectedIndex = preferences.TicTacToeLevel;
+        tttLevel.SelectionChanged += (_, _) => { if (tttLevel.SelectedIndex >= 0) { preferences.TicTacToeLevel = tttLevel.SelectedIndex; SaveCompanion(); } };
+        tttRow.Children.Add(tttLevel);
+        page.Children.Add(tttRow);
         Note("饱腹每小时下降 8 点，精力每小时恢复 15 点。她有自己的口味：最爱的食物标着 ♥，同一样吃多了会腻；节日当天有应景美食。"
-            + "玩耍：玩具、看她表演（魔术、跳舞、乐器，演完可以鼓掌或喊「再来一个」）、猜拳、捉迷藏（她藏到屏幕某条边外，鼠标移到边上找她）。");
+            + "玩耍：玩具、看她表演（魔术、跳舞、乐器，演完可以鼓掌或喊「再来一个」）、猜拳、捉迷藏（她藏到屏幕某条边外，鼠标移到边上找她）、井字棋（先猜拳定先手；让着你常常走漏，认真偶尔失误、能赢她，绝不输最多和棋；"
+            + "右键菜单「井字棋」或聊天里说「来下井字棋」就能开一局）。");
 
         // ---- chat & memory
         Section("聊天与记忆");

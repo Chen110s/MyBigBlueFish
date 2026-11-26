@@ -163,6 +163,7 @@ internal sealed class CompanionPreferences
     public bool MealRequests { get; set; } = true;
     public bool Sneaking { get; set; } = true;
     public bool PlayInvites { get; set; } = true;
+    public int TicTacToeLevel { get; set; } = 1; // 井字棋: 0 让着你 · 1 认真 · 2 绝不输
     // 聊天记录: a copy of every chat round (and of DeepSeek 网页版 conversations the owner saves); "" = data\chats.
     public bool ChatLogEnabled { get; set; } = true;
     public string ChatLogFolder { get; set; } = "";
@@ -273,6 +274,7 @@ internal sealed class CompanionPreferences
                     s.ScoreToday = Math.Max(0, s.ScoreToday);
                     s.ScoreBest = Math.Max(0, s.ScoreBest);
                     s.BubbleFont = s.BubbleFont == "candy" ? "candy" : "";
+                    s.TicTacToeLevel = Math.Clamp(s.TicTacToeLevel, 0, 2);
                     s.PetOpacity = Math.Clamp(s.PetOpacity, 20, 100);
                     s.HealKey = Math.Clamp(s.HealKey, 0, 255);
                     s.BandageKey = Math.Clamp(s.BandageKey, 0, 255);

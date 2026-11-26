@@ -45,10 +45,10 @@ public partial class MainWindow
     private Window? petPanel;
 
     // Features that should not run while she is busy with the owner.
-    private bool SpeechPaused => FocusActive || GameActive || chatWindow != null || SeekActive;
+    private bool SpeechPaused => FocusActive || GameActive || chatWindow != null || SeekActive || tttGame != null;
     private bool CrawlBlocked => FocusActive || (GameActive && preferences.GameCompanion) || chatWindow != null;
     private bool CanChatter => companionReady && IsVisible && !hiddenByUser && !fullscreenHidden && !PuppetActive && !dragging
-        && !exitAnimation && !FocusActive && chatWindow == null && companionSettings == null && modelInstaller == null;
+        && !exitAnimation && !FocusActive && chatWindow == null && companionSettings == null && modelInstaller == null && tttGame == null;
 
     private void InitializeCare()
     {

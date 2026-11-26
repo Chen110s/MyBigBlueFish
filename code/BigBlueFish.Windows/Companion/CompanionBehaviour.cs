@@ -24,7 +24,7 @@ public partial class MainWindow
             for (int i = 0; i < 8; i++)
             {
                 var rule = animationPolicy.Choose("Event", context, companionRandom);
-                if (preferences.ActivityLevel != 0 && !preferences.StayPut || rule.MoveKind == null) return rule;
+                if (preferences.ActivityLevel != 0 && !StayStill || rule.MoveKind == null) return rule;
             }
         }
         catch (InvalidOperationException) { } // nothing in the pool can play right now

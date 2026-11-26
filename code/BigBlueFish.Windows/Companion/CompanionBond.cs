@@ -31,6 +31,12 @@ internal sealed class CompanionBondState
     public int Plays { get; set; }
     public int RpsWins { get; set; }   // rock-paper-scissors today, from her side
     public int RpsLosses { get; set; }
+    public int TttWins { get; set; }    // 井字棋 today, from her side
+    public int TttLosses { get; set; }
+    public int TttDraws { get; set; }
+    public int TttWinsAll { get; set; } // 井字棋 since the first game
+    public int TttLossesAll { get; set; }
+    public int TttDrawsAll { get; set; }
     public System.Collections.Generic.Dictionary<string, int> FoodToday { get; set; } = new();
     public string? MealAskKey { get; set; } // the meal she last asked to be fed for, e.g. 2026-11-06-1
 
@@ -75,7 +81,7 @@ internal sealed class CompanionBondState
         var date = local.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
         if (StatsDate == date) return;
         StatsDate = date;
-        Pats = Feeds = Chats = Pokes = Focus = Plays = RpsWins = RpsLosses = 0;
+        Pats = Feeds = Chats = Pokes = Focus = Plays = RpsWins = RpsLosses = TttWins = TttLosses = TttDraws = 0;
         FoodToday = new();
         GainedToday = 0;
     }

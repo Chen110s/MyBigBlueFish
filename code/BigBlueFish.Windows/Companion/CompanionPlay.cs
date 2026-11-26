@@ -273,6 +273,7 @@ public partial class MainWindow
         foreach (var show in Shows) { var s = show; Add(shows, s.Name, () => PerformShow(s), tip: $"消耗精力 {s.Cost}"); }
         var games = Group("小游戏");
         Add(games, "猜拳", () => Dispatcher.BeginInvoke(ShowRpsPanel), true);
+        Add(games, "井字棋", () => Dispatcher.BeginInvoke(ShowTicTacToe), tip: "先猜拳定先手；难度：让着你 / 认真 / 绝不输");
         Add(games, "捉迷藏", StartHideAndSeek, tip: "她藏到屏幕某条边外，把鼠标移到边上找她，看到就点她");
         body.Children.Add(new TextBlock { Text = "精力每小时恢复 15 点；表演完可以鼓掌或者喊「再来一个」。", Foreground = muted, FontSize = 11,
             TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) });
@@ -303,6 +304,14 @@ public partial class MainWindow
             || idle < 5 || idle > 120 || local.Hour < 9 || local.Hour >= 22 || (now - bond.LastInteractionUtc).TotalMinutes < 45
             || Energy() < 50 || animationPhase is not ("Idle" or "Event") || companionRandom.NextDouble() > .25) return;
         nextPlayInvite = now.AddHours(2.5);
+        if (companionRandom.NextDouble() < .3)
+        {
+            SayWithActions($"{bond.Address}～陪鱼鱼下一盘井字棋好不好？", "下五子棋",
+                ("好呀", ShowTicTacToe),
+                ("玩点别的…", ShowPlayPanel),
+                ("等会儿", () => { nextPlayInvite = DateTime.UtcNow.AddHours(3); Say("好吧……那鱼鱼先把棋盘摆好等你～忙完记得来找我哦！"); }));
+            return;
+        }
         string season = CompanionAnimationPolicy.Season(local);
         var toy = Pick(Toys.Where(t => (t.Season == null || t.Season == season) && t.Cost <= 15).ToArray());
         SayWithActions($"{bond.Address}～陪鱼鱼玩一会儿{toy.Name}好不好？", toy.Clip,
