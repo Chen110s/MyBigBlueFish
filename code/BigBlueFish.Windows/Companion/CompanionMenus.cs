@@ -66,6 +66,10 @@ public partial class MainWindow
         playItem.Icon = Icon("\uE7FC");
         playItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowPlayPanel); };
         companionContextMenu.Items.Add(playItem);
+        var keyMouseItem = new MenuItem { Header = "键鼠陪伴" };
+        keyMouseItem.Icon = Icon("\uE765");
+        keyMouseItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ToggleKeyMouse); };
+        companionContextMenu.Items.Add(keyMouseItem);
         var tttItem = new MenuItem { Header = "井字棋" };
         tttItem.Icon = Icon("\uE8A9");
         tttItem.Click += (_, _) => { companionContextMenu.IsOpen = false; Later(ShowTicTacToe); };
@@ -112,12 +116,14 @@ public partial class MainWindow
             goldItem.Header = goldQuote is { } gold ? $"招行金价 {gold.Price:0.00}（{gold.UpDown:+0.00;-0.00}）" : "招行金价";
             goldItem.IsEnabled = goldPanelItem.IsEnabled = libraryItem.IsEnabled = deepSeekItem.IsEnabled = !PuppetActive;
             topmostItem.Icon = Icon(TopmostGlyph());
-            crawlItem.IsEnabled = !PuppetActive;
             focusItem.Header = FocusActive ? $"结束专注（还剩 {FocusMinutesLeft} 分钟）" : $"专注 {preferences.FocusMinutes} 分钟";
             remindItem.Header = reminders.Count > 0 ? $"提醒事项（{reminders.Count}）…" : "提醒事项…";
             feedItem.Header = $"喂食…（饱腹 {Fullness():0}）";
             playItem.Header = SeekActive ? "陪鱼鱼玩…（捉迷藏中）" : $"陪鱼鱼玩…（精力 {Energy():0}）";
             tttItem.Header = tttGame != null ? "井字棋（下棋中）" : "井字棋";
+            keyMouseItem.Header = KeyMouseActive ? "关闭键鼠陪伴" : "键鼠陪伴（跟着键盘鼠标动）";
+            keyMouseItem.IsEnabled = !PuppetActive && (KeyMouseActive || KeyMouseAvailable);
+            crawlItem.IsEnabled = !PuppetActive && !KeyMouseActive;
             foreach (var item in new[] { chatItem, feedItem, playItem, tttItem, focusItem, remindItem }) item.IsEnabled = !PuppetActive;
         };
     }

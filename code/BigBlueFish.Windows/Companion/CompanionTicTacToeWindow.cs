@@ -29,8 +29,8 @@ public partial class MainWindow
 
     private TttGame? tttGame;
 
-    // 原地不动, or a game on the board: no wandering, crawling or running off.
-    private bool StayStill => preferences.StayPut || tttGame != null;
+    // 原地不动, a game on the board, or 键鼠陪伴: no wandering, crawling or running off.
+    private bool StayStill => preferences.StayPut || tttGame != null || KeyMouseActive;
 
     private void ShowTicTacToe()
     {

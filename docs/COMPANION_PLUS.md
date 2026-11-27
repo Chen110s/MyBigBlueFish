@@ -2,7 +2,7 @@
 
 本仓库基于 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 v1.0.5（Apache License 2.0）修改。原作者的代码、动画素材（来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT）、许可文件和第三方声明均保持不变；下面列出本仓库新增和修改的内容。
 
-修改后的程序在设置页左侧显示版本号 `1.0.5-companion.24`（构建时传入 `-p:InformationalVersion=1.0.5-companion.24`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
+修改后的程序在设置页左侧显示版本号 `1.0.5-companion.25`（构建时传入 `-p:InformationalVersion=1.0.5-companion.25`）。所有新增数据都只保存在本机安装目录的 `data\` 中，不上传。
 
 ## 一、沿屏幕四周爬行
 
@@ -255,19 +255,32 @@
 - **聊天的时间背景**：聊天的系统提示里写上时段（凌晨 / 早上 / 上午 / 中午 / 下午 / 傍晚 / 晚上 / 深夜）、工作日或周末，以及今天和三天内的节日（元旦、春节、除夕、元宵、清明、端午、七夕、中秋、重阳、国庆、冬至、腊八、圣诞等；农历节日用 .NET 的中国农历）。
 - **保留原样的**：动画链（本程序的动画池按节日、饭点、季节、时段调权重，比 dsh-pet 的五类固定权重更细）、动作间隔与活跃程度、点头 / 身体 / 尾巴分区回应、聊天记忆（会淡忘）、模型选择与本地兜底、气泡停留时长与大小。
 
-## 十七、构建
+## 十七、键鼠陪伴（KuroCat 的大肥鱼）
+
+第二十五版新增，移植自 [KuroCat](https://github.com/qianyiai/KuroCat)（MIT，Copyright (c) 2026 KuroCat Contributors）里「🐳 大肥鱼」的键盘鼠标跟随（`dafeiyuRenderer.ts`、`keyboardLayout.ts` 和 `catEngine.ts` 里大肥鱼的部分），只取了键鼠跟随，KuroCat 的其他功能（3D、猫咪皮肤、MCP、AI 编程伴侣、OBS、贴边偷看、音效等）没有加。画面用到的四张无手臂、无尾巴的大肥鱼（待机 / 眨眼 / 害羞 / 开心）来自 KuroCat 的 `src/assets/dafeiyu`（它注明衍生自 dsh-pet 的运行时素材），和 dsh-pet 的其他图片一样**不放进本仓库**，由部署文件夹 `edge-crawl\dshpet\kurocat\` 装到 `assets\dshpet\kurocat\`，只在本机使用；缺了图片时这个开关是灰的。
+
+- **开关**：右键鱼鱼「键鼠陪伴」，或 设置 → 陪伴与外观 →「键鼠陪伴（来自 KuroCat）」。打开后她平时的动画隐藏并暂停，换成坐在一把小键盘和一只鼠标后面的画面（叠在她原来的位置上，键盘留在窗口里）；关掉就回到平时的动画。下次启动时如果上次开着，她请完安会自己坐回键盘前。
+- **跟随**：眼睛跟着鼠标指针转（Live2D 式的眼珠，看正前方时淡出成原图）；你按哪个键，她就用离得近的那只手按哪个键，按下的键帽变蓝；动鼠标或点鼠标时左手握住鼠标，鼠标跟着指针在小范围里移动，左右键按下分别变色；边用鼠标边打字时右手打字；两只手都忙或刚打完一串字按回车时，鲸鱼尾巴拍下去（水波纹和小水滴）；打字越快脸越红，很快时眯眼笑；摸头时开心挥手、冒小爱心。
+- **键盘**：65% 紧凑键盘（默认）或 108 键全尺寸（带小键盘），面向她摆放（空格在她那边，字是倒着的，和 KuroCat 默认一样）。
+- **按键气泡**（默认开）：按下的键帽从键盘上方飘起来，点鼠标时冒出 LMB / RMB / MMB 小角标；可关。
+- **尾巴帮忙**（默认开）：关掉后尾巴只在身后摆动。
+- **输密码**：焦点在密码框里（Win32 的 `ES_PASSWORD` 编辑框、UI Automation 报告 `IsPassword` 的输入框，或本程序自己的密码框，比如 API Key）时，她闭上眼睛用两只手捂住，键盘盖上「非礼勿视 · 已隐藏按键」，不显示任何按键和气泡。换窗口、换输入框、点鼠标或按 Tab 之后，在确认新的输入框之前按的键也不显示。
+- **怎么读键鼠**：每帧用 `GetAsyncKeyState` 查哪些键和鼠标键按着、`GetCursorPos` 查指针位置（和三角洲模仿一样，不装键盘钩子），只看键码，不读打的字，不保存，不上传。看不到滚轮；以管理员身份运行的软件里打字，她可能看不到。密码框检测在后台线程里每 0.3 秒看一次当前焦点。
+- **开着时**：她待在原地——不自己走动、不爬行（菜单里的爬行是灰的）、不跑到点的位置、甩出去不飞、拖到屏幕外不藏到边上、捉迷藏先请你关掉；点她、拖她、聊天、气泡、提醒、喂食、陪玩等照常（需要她动画的地方只说话不演）。有键鼠活动时每秒 60 帧，空闲时 30 帧；隐藏时不画。
+
+## 十八、构建
 
 与上游相同，需要 Windows x64 和 .NET 10 SDK。无MCP版：
 
 ```powershell
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.24
+dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:CompanionInputMode=Ocr -p:RestoreLockedMode=true -p:InformationalVersion=1.0.5-companion.25
 ```
 
 把 `code/BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/` 中的 `BigBlueFish.dll`、`BigBlueFish.pdb` 替换到已安装的官方 v1.0.5 程序目录即可（请先备份原文件）。
 
 **官方更新会覆盖增强版**：用应用内「检查更新」或官方安装器升级到 v1.0.5 以后的官方版本时，程序文件会被替换、增强功能消失，官方版保存设置时还会去掉增强功能的设置项（好感度、聊天记忆、提醒、金价记录等数据文件不受影响）。所以增强版打开更新窗口前会先弹出提醒，托盘的新版本通知也会注明。已经被覆盖时，重新安装官方 v1.0.5 再编译增强版即可恢复。
 
-## 十八、改动的文件
+## 十九、改动的文件
 
 新增（`code/BigBlueFish.Windows/Companion/`）：
 
@@ -288,6 +301,10 @@ dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p
 | `CompanionFeeding.cs` | 喂食：食物表、饱腹度、口味、节日美食、拖食物喂她、饭点要饭、偷吃、气泡里的按钮 |
 | `CompanionPlay.cs` | 陪玩：玩具、表演与鼓掌 / 再来一个、猜拳、捉迷藏、精力、主动邀请 |
 | `CompanionTicTacToe.cs` | 井字棋规则与三档难度的走法（完美下法用带记忆的极小化极大搜索） |
+| `CompanionKeyMouse.cs` | 键鼠陪伴：开关、隐藏平时的动画、每帧读键盘鼠标、把画面叠在她身上、密码框检测（后台线程）、设置区 |
+| `CompanionKeyMouseScene.cs` / `CompanionKeyMouseFish.cs` / `CompanionKeyMouseDraw.cs` | 键鼠陪伴的场景（移植自 KuroCat，MIT）：键盘与鼠标状态、手和尾巴、眼睛、脸红、气泡；绘制 |
+| `CompanionKeyMouseLayout.cs` | 65% 与 108 键键盘布局（来自 KuroCat） |
+| `CompanionKeyMouseCanvas.cs` / `CompanionKeyMouseView.cs` | 类 HTML canvas 的绘制层（路径、渐变、保存 / 恢复、裁剪），WPF 实现 |
 | `CompanionTicTacToeWindow.cs` | 井字棋棋盘面板：猜拳定先手、落子与数字键、她的思考与点评、胜负反应和战绩、聊天里「来下井字棋」 |
 | `CompanionReminders.cs` | 定时提醒（中文时间解析、持久化、提醒面板） |
 | `CompanionGame.cs` | 游戏识别与陪玩 |

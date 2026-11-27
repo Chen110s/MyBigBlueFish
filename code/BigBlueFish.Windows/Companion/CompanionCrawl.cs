@@ -362,6 +362,7 @@ public partial class MainWindow
 
     private void ToggleCrawlFromMenu()
     {
+        if (KeyMouseActive) { ShowCompanionNotice("鱼鱼正坐在键盘前呢～先在右键菜单关掉「键鼠陪伴」再爬吧！"); return; }
         if (crawl is { Finished: false, StopRequested: false }) { RequestCrawlStop(); return; }
         if (crawl is { Finished: true }) EndCrawl(false); // still turning back to the front: start again from here
         if (hiddenByUser || fullscreenHidden) RestoreCompanion();

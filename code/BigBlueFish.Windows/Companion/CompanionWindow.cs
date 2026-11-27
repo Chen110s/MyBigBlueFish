@@ -74,7 +74,7 @@ public partial class MainWindow
         bool show = !hiddenByUser && !fullscreenHidden;
         if (show && !IsVisible) { Show(); ClampCompanion(); }
         else if (!show && IsVisible) { InvalidateSpeechRequests(); Hide(); }
-        if (videoPlayer != null) videoPlayer.Paused = !exitAnimation && !show;
+        if (videoPlayer != null) videoPlayer.Paused = !exitAnimation && (!show || KeyMouseActive); // 键鼠陪伴 hides her clips
     }
     private readonly IntPtr startupForeground = CompanionNative.GetForegroundWindow();
     private IntPtr lastExternalForeground;

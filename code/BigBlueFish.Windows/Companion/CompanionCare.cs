@@ -142,6 +142,7 @@ public partial class MainWindow
         if (now >= bondSaveDue) SaveBondNow();
         double idle = CompanionNative.IdleSeconds;
         UpdateGame(now);
+        KeyMouseTick();
         ApplyTopmost();
         UpdateGold(now);
         UpdateSkinRotation(now);
@@ -408,6 +409,7 @@ public partial class MainWindow
     {
         bond.RollDay(DateTime.Now);
         bond.Pats++;
+        keyMouseView?.Scene.Pet(); // 键鼠陪伴: happy face and cheering hands
         NoteInteraction();
         AddAffection(bond.Pats <= 10 ? 1.5 : .3);
         SetMood("开心", TimeSpan.FromMinutes(10));

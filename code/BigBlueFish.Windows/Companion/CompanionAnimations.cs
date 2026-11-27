@@ -195,6 +195,7 @@ public partial class MainWindow
         e.Cancel = true;
         if (exitAnimation) return;
         exitAnimation = true; CancelMovement(); EndCrawl(true);
+        LeaveKeyMouse(false); // she says goodbye with her own curtsy (键鼠陪伴 comes back next time)
         modelInstaller?.RequestClose();
         updateWindow?.RequestClose();
         speechRequestVersion++;

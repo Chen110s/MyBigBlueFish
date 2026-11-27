@@ -33,7 +33,7 @@ public partial class MainWindow
     private void BeginTargetSelection()
     {
         if (!preferences.ClickToMove || targetOverlays != null || PuppetActive || !companionReady || exitAnimation || hiddenByUser
-            || edgeHide != null || Crawling || mimicActive || FocusActive || GameActive || chatWindow != null) return;
+            || edgeHide != null || Crawling || mimicActive || FocusActive || GameActive || chatWindow != null || KeyMouseActive) return;
         targetSelectUntil = DateTime.UtcNow.AddSeconds(5);
         targetOverlays = new List<Window>();
         foreach (var screen in Forms.Screen.AllScreens) targetOverlays.Add(CreateTargetOverlay(screen.Bounds));

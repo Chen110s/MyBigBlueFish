@@ -222,7 +222,7 @@ public partial class MainWindow
 
     private void OnDragMoved()
     {
-        if (!preferences.EdgeHide) KeepDragOnScreen();
+        if (!preferences.EdgeHide || KeyMouseActive) KeepDragOnScreen();
         double ms = fxClock.Elapsed.TotalMilliseconds;
         dragSamples.Add((ms, Left, Top));
         if (dragSamples.Count > 10) dragSamples.RemoveAt(0);
@@ -262,6 +262,7 @@ public partial class MainWindow
         dragSamples.Clear();
         fxStretch.Matrix = Matrix.Identity;
         double speed = Math.Sqrt(vx * vx + vy * vy);
+        if (KeyMouseActive) return false; // 键鼠陪伴: she stays at her desk, no flight and no hiding at an edge
         if (TryEdgeHide()) // dropped (or flung) off every screen
         {
             PublishMcpInteraction("drag_end", new { Left, Top, cancelled = false });

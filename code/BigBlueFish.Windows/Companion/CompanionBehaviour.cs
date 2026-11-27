@@ -191,5 +191,6 @@ public partial class MainWindow
                 + "Windows 关闭了「显示动画」时，倾斜、回弹和甩出滑行会自动停用。动作库里可以预览全部动作、调整它们在哪个动作池；"
                 + "触发规则让她在你指定的事情发生时演指定的动作、说指定的话。" });
         AddDshPetLookSettings(page);
+        AddKeyMouseSettings(page);
     }
 }

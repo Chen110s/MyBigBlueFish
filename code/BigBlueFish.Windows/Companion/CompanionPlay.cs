@@ -169,6 +169,7 @@ public partial class MainWindow
     // click her. She gives a tiny hint now and then and comes out by herself after a minute.
     private void StartHideAndSeek()
     {
+        if (KeyMouseActive) { Say("鱼鱼正坐在键盘前呢～先关掉「键鼠陪伴」再玩捉迷藏吧！"); return; }
         if (!PlayReady(10) || PresentationSource.FromVisual(this) == null) return;
         SpendPlay(10);
         LeaveEdgeHide();
